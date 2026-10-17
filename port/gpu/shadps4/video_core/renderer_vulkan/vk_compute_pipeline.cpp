@@ -110,7 +110,12 @@ ComputePipeline::ComputePipeline(const Instance& instance, Scheduler& scheduler,
         const vk::ComputePipelineCreateInfo compute_pipeline_ci = {
             .flags = flags,
             .stage{
-                .pNext = instance.IsSubgroupSize64Supported() ? &subgroup_size_ci : nullptr,
+                // tlg: the stage must be in requiredSubgroupSizeStages for this to be valid; the
+                // profile's subgroup size (vk_pipeline_cache.cpp) is picked to match.
+                .pNext = instance.IsRequiredSubgroupSize64ValidFor(
+                             vk::ShaderStageFlagBits::eCompute)
+                             ? &subgroup_size_ci
+                             : nullptr,
                 .stage = vk::ShaderStageFlagBits::eCompute,
                 .module = module,
                 .pName = "main",
