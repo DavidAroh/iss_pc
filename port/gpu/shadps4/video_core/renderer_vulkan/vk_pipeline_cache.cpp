@@ -439,12 +439,18 @@ std::vector<u8> LoadDriverCacheBlob(const Instance& instance) {
 }
 } // namespace
 
+std::atomic<u64> g_tlg_driver_pipelines_created{0};
+
 struct PipelineCache::DriverCacheSaver {
     std::thread thread;
     std::mutex mutex;
     std::condition_variable cv;
     bool stop = false;
     u64 saved_hash = 0; ///< XXH3 of the last blob written (or loaded): unchanged data is not rewritten
+    /// g_tlg_driver_pipelines_created at the last save: nothing new means nothing to merge, copy
+    /// or hash (a whole-game blob is ~300 MB, and the save ran every minute regardless).
+    u64 saved_created = ~0ull;
+    bool over_limit_logged = false;
 };
 
 bool PipelineCache::SaveDriverCache() {
@@ -461,6 +467,10 @@ bool PipelineCache::SaveDriverCache() {
 bool PipelineCache::SaveDriverCacheUnchecked() {
     // Pipelines the compiler workers built are only merged into pipeline_cache when they finish
     // (FinishCompilations): merge copies of all of them into a scratch cache for the blob.
+    const u64 created = g_tlg_driver_pipelines_created.load(std::memory_order_relaxed);
+    if (driver_saver && created == driver_saver->saved_created) {
+        return true;
+    }
     const auto device = instance.GetDevice();
     auto [scratch_result, scratch] = device.createPipelineCacheUnique({});
     if (scratch_result != vk::Result::eSuccess) {
@@ -477,8 +487,28 @@ bool PipelineCache::SaveDriverCacheUnchecked() {
     if (result != vk::Result::eSuccess || blob.size() < sizeof(VkPipelineCacheHeaderVersionOne)) {
         return false;
     }
+    // tlg: TLG_DRIVER_CACHE_MAX_MB (default 1024, 0 = no limit): a bigger blob is not written,
+    // so the file never grows past it (the saved one keeps loading). Vulkan has no way to evict
+    // entries from a pipeline cache; deleting the file starts it again.
+    static const u64 max_bytes = [] {
+        const char* v = std::getenv("TLG_DRIVER_CACHE_MAX_MB");
+        return u64(v && *v ? std::max(0, std::atoi(v)) : 1024) << 20;
+    }();
+    if (max_bytes && blob.size() > max_bytes) {
+        if (driver_saver && !driver_saver->over_limit_logged) {
+            driver_saver->over_limit_logged = true;
+            std::printf("GPU: driver pipeline cache not saved: %zu MB is over the %llu MB limit "
+                        "(TLG_DRIVER_CACHE_MAX_MB)\n",
+                        blob.size() >> 20, static_cast<unsigned long long>(max_bytes >> 20));
+        }
+        if (driver_saver) {
+            driver_saver->saved_created = created;
+        }
+        return false;
+    }
     const u64 hash = XXH3_64bits(blob.data(), blob.size());
     if (driver_saver && hash == driver_saver->saved_hash) {
+        driver_saver->saved_created = created;
         return true;
     }
     const auto path = DriverCacheFile(instance);
@@ -503,6 +533,7 @@ bool PipelineCache::SaveDriverCacheUnchecked() {
     }
     if (driver_saver) {
         driver_saver->saved_hash = hash;
+        driver_saver->saved_created = created;
     }
     LOG_INFO(Render_Vulkan, "tlg: driver pipeline cache saved ({} bytes)", blob.size());
     return true;

@@ -301,6 +301,9 @@ vk::ResultValue<vk::UniquePipeline> CreateCachedGraphicsPipeline(
                                 .count());
         extern std::atomic<u64> g_tlg_pipeline_driver_ns;
         g_tlg_pipeline_driver_ns += ns;
+        if (result.result == vk::Result::eSuccess) {
+            g_tlg_driver_pipelines_created.fetch_add(1, std::memory_order_relaxed);
+        }
         if (enabled) {
             (restored ? binary_restore_ns : binary_compile_ns) += ns;
             ++(restored ? binary_restore_calls : binary_compile_calls);

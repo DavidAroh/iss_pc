@@ -132,6 +132,9 @@ ComputePipeline::ComputePipeline(const Instance& instance, Scheduler& scheduler,
             (flags & vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired)) {
             return {};
         }
+        if (created.result == vk::Result::eSuccess) {
+            g_tlg_driver_pipelines_created.fetch_add(1, std::memory_order_relaxed);
+        }
         ASSERT_MSG(created.result == vk::Result::eSuccess, "Failed to create compute pipeline: {}",
                    vk::to_string(created.result));
         SetObjectName(device, *created.value, "Compute Pipeline {}", debug_str);

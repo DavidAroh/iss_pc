@@ -104,6 +104,9 @@ vk::ResultValue<vk::UniquePipeline> CreateGraphicsPipelineNow(vk::Device device,
         created = device.createGraphicsPipelineUnique(cache, info);
     }
     g_tlg_pipeline_driver_ns += NsSince(started);
+    if (created.result == vk::Result::eSuccess) {
+        g_tlg_driver_pipelines_created.fetch_add(1, std::memory_order_relaxed);
+    }
     return created;
 }
 
