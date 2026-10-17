@@ -79,6 +79,8 @@ Na primeira abertura do launcher depois de atualizar, uma mensagem única explic
 
 Todo log (`out/logs/run-*.log`) começa com `Build:` e um bloco `Config:` com as chaves do `tlg.ini` e as variáveis `TLG_`/`ISS_` definidas (sem valores que pareçam caminhos), seguido das linhas `Backports:` (uma por BPnn, com o estado, mais o modo de oclusão); com as estatísticas de quadros aparece `Backport hits (total): BPnn n, ...`, que conta quantas vezes cada correção realmente rodou (só as que se mexeram). Isso diz, num relato, quais correções estavam ligadas.
 
+As estatísticas de quadros (ligadas pelo launcher) também trazem a linha `Frame waits:` (esperas por quadros e pela fila de flips, envios por quadro, CPU das threads auxiliares). Variáveis de diagnóstico sem chave no launcher (`ISS_WAIT_STATS`, `ISS_READBACK_STATS`, `ISS_FILE_DIRECT`, `ISS_THREAD_PRIO`, `ISS_READBACK_QUEUE_MB`/`_ENTRIES`, `ISS_PIPE_RING_SLEEP`, `ISS_FOREIGN_SERIALIZE`, `ISS_OWNER_ABORT`) e o relatório de travamento (`FREEZE:`) estão descritos em inglês em [`port/docs/parallel_gpu.md`](../port/docs/parallel_gpu.md#diagnostic-toggles-and-log-lines-2026-10-17).
+
 ## Origem das correções
 
 BP01–BP05, BP10–BP12: [shadPS4](https://github.com/shadps4-emu/shadPS4) (números de PR/commits na tabela). BP06: port nativo de [Shadow of the Colossus](https://github.com/AjncSystem/ShadowOfTheColossus-PC). BP07: bbport ([bloodborne_pc](https://github.com/deadinside28/bloodborne_pc)). BP08: [Mrsuss60/bloodborne_pc_windows_port](https://github.com/Mrsuss60/bloodborne_pc_windows_port) e [0xCydral/bloodborne_pc](https://github.com/0xCydral/bloodborne_pc). BP09: [T3CHNOLOG1C/CTR](https://github.com/T3CHNOLOG1C/CTR). Detalhes em `port/gpu/VENDOR.txt` e nas mensagens dos commits `Backport BPnn`.
@@ -167,6 +169,8 @@ On the first launcher start after updating, a one-time message explains that the
 ## In the log
 
 Every log (`out/logs/run-*.log`) starts with `Build:` and a `Config:` block with the `tlg.ini` keys and the `TLG_`/`ISS_` variables that are set (no values that look like paths), followed by the `Backports:` lines (one per BPnn, with its state, plus the occlusion mode); with the frame statistics comes `Backport hits (total): BPnn n, ...`, counting how many times each fix actually ran (only the ones that moved). In a report that says which fixes were on.
+
+The frame statistics (on in the launcher) also carry a `Frame waits:` line (waits for frames and for the flip queue, submissions per frame, CPU time of the helper threads). Diagnostic variables without a launcher switch (`ISS_WAIT_STATS`, `ISS_READBACK_STATS`, `ISS_FILE_DIRECT`, `ISS_THREAD_PRIO`, `ISS_READBACK_QUEUE_MB`/`_ENTRIES`, `ISS_PIPE_RING_SLEEP`, `ISS_FOREIGN_SERIALIZE`, `ISS_OWNER_ABORT`) and the freeze report (`FREEZE:`) are described in [`port/docs/parallel_gpu.md`](../port/docs/parallel_gpu.md#diagnostic-toggles-and-log-lines-2026-10-17).
 
 ## Source of the fixes
 

@@ -623,14 +623,70 @@ FREEZE: end of report (N threads; the game keeps running)
 
 - `+s > 0, +p = 0`: the game still submits flips, the present path is stuck; `+v = 0`: the
   present thread itself is stuck. `+s = 0`: the game stopped submitting (look at its threads).
-- Marked waits: guest mutexes (with holder), condition variables, semaphores, event flags,
+- Marked waits: guest mutexes (with holder), rwlocks (blocking read/write acquires, with the
+  lock's name), condition variables, semaphores, event flags,
   sleeps, file open/read/write/sync, `sceKernelWaitEqueue` (queue name), `sceGnmSubmitDone`
   (GPU idle), `sceVideoOutWaitVblank`, Liverpool `SendCommand<true>` ("GPU thread (command)"),
   texture readbacks, and the page-fault handler (`GPU page fault handler`, a thread stuck in
-  `tlggpu_handle_fault`). Host threads get a wait slot on their first marked wait.
+  `tlggpu_handle_fault`). Host threads get one of 64 wait slots on their first marked wait; when
+  they run out, a slot whose owner thread has exited is handed over (claimed with a CAS and cleared
+  under an odd generation, so a report never copies a half-cleared slot), so long sessions that
+  create and end host threads keep every live thread in the report.
 - Guest offsets are relative to the loaded image (same as the crash report); host addresses are
   `module+offset` (Linux adds the dynamic symbol). Windows: resolve `tlg-probe.exe+0x...` with
   `llvm-symbolizer --obj=tlg-probe.exe 0x<image base + offset>` on the same build.
 - Registers: Linux sends SIGURG to each thread (handler copies registers and the frame chain);
   Windows suspends each thread for `GetThreadContext`. Memory is read with
   `process_vm_readv` / `ReadProcessMemory`.
+
+## Diagnostic toggles and log lines (2026-10-17)
+
+All off by default unless noted; players set them as `ISS_<name>` (copied to `TLG_<name>` at
+start). None of the toggles changes the image.
+
+Statistics (every 5 s unless noted):
+- `TLG_FRAME_STATS=1` (on in the launcher) adds a `Frame waits:` line next to `Frame stats:` and
+  `Frame pacing:`: time the GPU thread waited for frames in flight (`GPU frames`) and for a free
+  frame, the average flip queue wait per flip, submissions per frame, and the CPU time of the
+  draw recording thread (stage B) and the Vulkan recorder thread (with the recorder's idle spin,
+  bounded by `TLG_PIPE_SPIN_US`). The `Draw pipe:` line also counts stage B's idle spin and
+  sleeps, the ring-full waits and the share of time stage A waited for room in the ring.
+- `TLG_WAIT_STATS=1` (`src/runtime_thread.c`): per-thread accounting of the marked waits (the
+  same ones the freeze report shows) and a `Runtime: wait stats` block: one line per thread whose
+  longest wait ended in the window, with the number of waits, the time blocked and the longest
+  wait with its kind and object name, to tie a 30-150 ms stutter to a thread and a lock. Off,
+  marking a wait reads no clock.
+- `TLG_READBACK_STATS=1` now also prints `waits for a readback copy: N, X ms`: guest threads
+  (faults, write merge) waiting for an eager or deferred buffer readback copy, which the
+  scheduler's own wait counters do not see.
+- In the runtime report at exit: with `TLG_AUDIO_STATS=1`, the average and longest Ajm decode
+  time per batch; the file line (`Runtime: files opened=...`) counts the read chunks that went
+  through the bounce buffer and the direct ones (`TLG_FILE_DIRECT`).
+
+Behavior switches (A-B tests, not measured as wins yet):
+- `TLG_READBACK_QUEUE_MB` / `TLG_READBACK_QUEUE_ENTRIES` (default 64 / 64): pending limit of the
+  deferred image readback queue; a full queue makes the GPU command thread wait for the GPU.
+- `TLG_PIPE_RING_SLEEP=1`: stage A sleeps when the draw ring is full instead of spinning, then
+  yielding.
+- `TLG_FILE_DIRECT=1`: file reads go straight into the guest buffer and fall back to the bounce
+  buffer on `EFAULT` (a page the GPU tracker protected) or a short read. The bounce path stays
+  the default: it is the one that survived precise readbacks.
+- `TLG_THREAD_PRIO=1`: guest priorities below normal (above 700) lower the host priority (nice
+  1-19 on Linux, below normal / lowest on Windows); the host priority is never raised.
+- `TLG_FOREIGN_SERIALIZE=1`: the texture cache work of `UnmapMemory` on a guest or fault thread
+  runs in order with the draws already handed to stage B, on the draw recording thread, instead
+  of beside them. A candidate for the guest heap corruption above; adds a wait to that path.
+- `TLG_OWNER_ABORT=1`: aborts (for a core dump) when a thread other than the GPU threads reaches
+  the scheduler while draws are in flight, instead of only logging it.
+
+Shaders:
+- Start-up line (always): `GPU: host subgroup size N (device default D, min A, max B,
+  required-size stages 0x...)`. N is the size the wave64 lowering targets: compute pipelines that
+  may require a subgroup size of 64 run with 64 lanes, so a GPU that defaults to 32 but supports
+  64 is now lowered for 64 (before, it ran 64 lanes with the 32-lane lowering).
+- With `TLG_VERBOSE_LOG=1/2` (the launcher's detailed log): `tlg: compiled <stage> shader 0x...
+  perm N in X ms` and `tlg: compiled graphics pipeline 0x... (...) in X ms` tie a stutter to a
+  compile; a census of the lane operations in vertex/pixel shaders (those stay on 32-lane waves);
+  pipeline-binary failures log the `VkResult` and the call.
+- The shader cache key now also covers `tlg_block1d.h`, `tlg_bc_tiny.h` and
+  `vk_graphics_pipeline.cpp`, so every player's shader cache is rebuilt once after this update.
