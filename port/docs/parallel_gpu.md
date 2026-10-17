@@ -678,6 +678,20 @@ Behavior switches (A-B tests, not measured as wins yet):
   of beside them. A candidate for the guest heap corruption above; adds a wait to that path.
 - `TLG_OWNER_ABORT=1`: aborts (for a core dump) when a thread other than the GPU threads reaches
   the scheduler while draws are in flight, instead of only logging it.
+- `TLG_GC_BATCH_DOWNLOAD=1`: the texture collector records the copies of all the GPU-written
+  images it evicts in a collection and waits for the GPU once (every 256 MiB of copies at most),
+  then writes each one back and frees it in order, while it still protects its pages. Before,
+  and by default, one full GPU wait per evicted image. Start-up line: `GPU: collector
+  write-backs batched, one GPU wait per collection (TLG_GC_BATCH_DOWNLOAD)`.
+- `TLG_SPLIT_SUBMIT_LOCK=1`: each Vulkan scheduler serializes only its own submissions, and the
+  global queue lock is held just around the queue calls (submit, sparse bind, present) instead of
+  across a whole submission, including the recorder drain and the host copy wait. The present
+  thread then no longer waits for the draw scheduler's submission to finish recording. Lock
+  order: scheduler, then queue. Prints `GPU: split submit lock on` at start.
+
+Always on: `ProcessDownloadImages`, which runs at every graphics and compute fence, returns at
+once when no image is queued for download and no image readback is pending (before, it took two
+locks and walked the readback queue every time).
 
 Shaders:
 - Start-up line (always): `GPU: host subgroup size N (device default D, min A, max B,
