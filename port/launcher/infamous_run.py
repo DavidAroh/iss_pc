@@ -88,18 +88,31 @@ PROBE = OUT_DIR / ('tlg-probe.exe' if os.name == 'nt' else 'tlg-probe')
 KEEP_LOGS = 30
 
 # Game language: PS4 system language ids (sceSystemServiceParamGetInt LANG). Which of them the
-# player's dump has comes from its PlayGo chunks (game_languages).
-GAME_LANGUAGES = {'en': 1, 'pt_BR': 17, 'es_LA': 20, 'fr_CA': 22, 'tr': 19, 'ru': 8}
-# PlayGo language ids whose data serves each choice (a package may tag French as 2, not 22).
-_LANGUAGE_IDS = {'en': (1, 18), 'pt_BR': (17, 7), 'es_LA': (20, 3), 'fr_CA': (22, 2), 'tr': (19,), 'ru': (8,)}
-
-_LANGUAGE_PREFIX = {'pt': 'pt_BR', 'es': 'es_LA', 'fr': 'fr_CA', 'tr': 'tr', 'ru': 'ru'}
+# player's dump has comes from its PlayGo chunks (game_languages); each choice passes its own id.
+GAME_LANGUAGES = {'en': 1, 'en_GB': 18, 'pt_BR': 17, 'pt_PT': 7, 'es_LA': 20, 'es': 3, 'fr_CA': 22, 'fr': 2,
+                  'de': 4, 'it': 5, 'nl': 6, 'pl': 16, 'tr': 19, 'ru': 8, 'cs': 23, 'hu': 24, 'el': 25, 'ro': 26,
+                  'fi': 12, 'sv': 13, 'da': 14, 'no': 15, 'ar': 21, 'ja': 0, 'ko': 9, 'zh_TW': 10, 'zh_CN': 11,
+                  'th': 27, 'vi': 28, 'id': 29}
+# Offered when the game files cannot tell (no playgo-chunk.dat, as in FTP dumps): the CUSA00223 set.
+_DEFAULT_LANGUAGES = ('en', 'pt_BR', 'es_LA', 'fr_CA', 'tr', 'ru')
+# The closest choice when the system's language is missing from the game files.
+_LANGUAGE_SIBLING = {'en_GB': 'en', 'pt_PT': 'pt_BR', 'pt_BR': 'pt_PT', 'es': 'es_LA', 'es_LA': 'es',
+                     'fr': 'fr_CA', 'fr_CA': 'fr', 'zh_TW': 'zh_CN', 'zh_CN': 'zh_TW'}
+# Locale language (and region) -> choice; a language not listed here is English.
+_LANGUAGE_REGION = {('en', 'gb'): 'en_GB', ('en', 'ie'): 'en_GB', ('en', 'au'): 'en_GB', ('en', 'nz'): 'en_GB',
+                    ('pt', 'br'): 'pt_BR', ('pt', ''): 'pt_BR', ('es', 'es'): 'es', ('fr', 'ca'): 'fr_CA',
+                    ('zh', 'tw'): 'zh_TW', ('zh', 'hk'): 'zh_TW', ('zh', 'mo'): 'zh_TW', ('zh', 'hant'): 'zh_TW'}
+_LANGUAGE_PREFIX = {'en': 'en', 'pt': 'pt_BR', 'es': 'es_LA', 'fr': 'fr', 'de': 'de', 'it': 'it', 'nl': 'nl',
+                    'pl': 'pl', 'tr': 'tr', 'ru': 'ru', 'cs': 'cs', 'hu': 'hu', 'el': 'el', 'ro': 'ro', 'fi': 'fi',
+                    'sv': 'sv', 'da': 'da', 'no': 'no', 'nb': 'no', 'nn': 'no', 'ar': 'ar', 'ja': 'ja', 'ko': 'ko',
+                    'zh': 'zh_CN', 'th': 'th', 'vi': 'vi', 'id': 'id', 'in': 'id'}
 
 
 def system_game_language(environ=None):
     """The game language that follows the system one: LC_ALL, LC_MESSAGES, LANG, then the Python
-    locale and, on Windows, the user's default locale name. pt (also pt_PT) is pt_BR, es is es_LA,
-    fr is fr_CA, tr and ru stay, anything else is English."""
+    locale and, on Windows, the user's default locale name. The region picks the variant (es_ES is
+    es, other Spanish is es_LA; pt_PT is pt_PT, pt_BR and a bare pt are pt_BR; fr_CA, en_GB, zh_TW);
+    a language the PS4 has no id for is English."""
     environ = os.environ if environ is None else environ
     code = ''
     for name in ('LC_ALL', 'LC_MESSAGES', 'LANG'):
@@ -120,7 +133,27 @@ def system_game_language(environ=None):
                 code = buf.value
         except Exception:
             code = ''
-    return _LANGUAGE_PREFIX.get(re.split(r'[_\-.@]', code.strip().lower())[0], 'en')
+    parts = re.split(r'[_\-.@]', code.strip().lower())
+    language = parts[0]
+    # Windows names: Portuguese_Brazil, Spanish_Spain... (locale.getlocale on Windows)
+    windows = {'english': 'en', 'portuguese': 'pt', 'spanish': 'es', 'french': 'fr', 'german': 'de',
+               'italian': 'it', 'dutch': 'nl', 'polish': 'pl', 'turkish': 'tr', 'russian': 'ru', 'czech': 'cs',
+               'hungarian': 'hu', 'greek': 'el', 'romanian': 'ro', 'finnish': 'fi', 'swedish': 'sv',
+               'danish': 'da', 'norwegian': 'no', 'arabic': 'ar', 'japanese': 'ja', 'korean': 'ko',
+               'chinese': 'zh', 'thai': 'th', 'vietnamese': 'vi', 'indonesian': 'id'}
+    regions = {'brazil': 'br', 'portugal': 'pt', 'spain': 'es', 'canada': 'ca', 'united kingdom': 'gb',
+               'taiwan': 'tw', 'hong kong sar': 'hk'}
+    language = windows.get(language, language)
+    region = regions.get(parts[1], parts[1]) if len(parts) > 1 else ''
+    if language == 'pt' and region == 'pt':
+        return 'pt_PT'
+    if language == 'pt':
+        return 'pt_BR'
+    if (language, region) in _LANGUAGE_REGION:
+        return _LANGUAGE_REGION[(language, region)]
+    if language == 'zh' and len(parts) > 2 and parts[1] == 'hant':
+        return 'zh_TW'
+    return _LANGUAGE_PREFIX.get(language, 'en')
 
 
 def playgo_languages(path):
@@ -147,15 +180,15 @@ def playgo_languages(path):
 
 def game_languages(game_dir):
     """The GAME_LANGUAGES keys the game files have, in that order, from the PlayGo chunk languages
-    of <game>/sce_sys/playgo-chunk.dat; every key when that cannot tell (no file: FTP dumps do not
-    expose it; or no language chunk). param.sfo is no help: its TITLE_xx keys are store titles."""
+    of <game>/sce_sys/playgo-chunk.dat; the CUSA00223 set when that cannot tell (no file: FTP dumps
+    do not expose it; or no language chunk). param.sfo is no help: its TITLE_xx keys are store titles."""
     ids = set()
     if game_dir:
         try:
             ids = _cached(Path(game_dir) / 'sce_sys' / 'playgo-chunk.dat', 'languages', playgo_languages)
         except (OSError, ValueError, struct.error):
             pass
-    return [key for key, codes in _LANGUAGE_IDS.items() if ids & set(codes)] or list(GAME_LANGUAGES)
+    return [key for key, code in GAME_LANGUAGES.items() if code in ids] or list(_DEFAULT_LANGUAGES)
 
 
 def game_language_choices(settings):
@@ -168,12 +201,16 @@ def game_language_choices(settings):
 
 def resolve_game_language(settings, environ=None):
     """settings['game_language'] when it is one of GAME_LANGUAGES; 'auto' (or anything unknown) follows
-    the system, or English (else the first language they have) when the game files lack that language."""
+    the system; when the game files lack that language, its closest variant (es/es_LA, pt_PT/pt_BR...),
+    else English, else the first language they have."""
     choice = settings.get('game_language', 'auto')
     if choice in GAME_LANGUAGES:
         return choice
     system, present = system_game_language(environ), game_languages(settings.get('game_dir', ''))
-    return system if system in present else 'en' if 'en' in present else present[0]
+    for key in (system, _LANGUAGE_SIBLING.get(system), 'en', 'en_GB'):
+        if key in present:
+            return key
+    return present[0]
 
 
 # TLG core defaults (the reasons are in each comment; still to be validated on this game).

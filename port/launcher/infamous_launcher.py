@@ -157,8 +157,13 @@ TEXT.update(tlg_run.TEXT)  # game folder problems (old libc.prx, other eboot), s
 CHANNEL_URL = 'https://www.youtube.com/@hayatog-dev'
 DISCORD_URL = 'https://discord.gg/UMkdMYZh9g'
 SPONSOR_URL = 'https://github.com/sponsors/HayatoG'
-GAME_LANGUAGE_NAMES = {'en': 'English', 'pt_BR': 'Português (Brasil)', 'es_LA': 'Español (Latinoamérica)',
-                       'fr_CA': 'Français (Canada)', 'tr': 'Türkçe', 'ru': 'Русский'}
+GAME_LANGUAGE_NAMES = {'en': 'English', 'en_GB': 'English (UK)', 'pt_BR': 'Português (Brasil)',
+                       'pt_PT': 'Português (Portugal)', 'es_LA': 'Español (Latinoamérica)', 'es': 'Español (España)',
+                       'fr_CA': 'Français (Canada)', 'fr': 'Français', 'de': 'Deutsch', 'it': 'Italiano',
+                       'nl': 'Nederlands', 'pl': 'Polski', 'tr': 'Türkçe', 'ru': 'Русский', 'cs': 'Čeština',
+                       'hu': 'Magyar', 'el': 'Ελληνικά', 'ro': 'Română', 'fi': 'Suomi', 'sv': 'Svenska', 'da': 'Dansk',
+                       'no': 'Norsk', 'ar': 'العربية', 'ja': '日本語', 'ko': '한국어', 'zh_TW': '繁體中文',
+                       'zh_CN': '简体中文', 'th': 'ไทย', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia'}
 UI_LANGUAGES = ['auto', 'pt_BR', 'en_US']
 UI_LANGUAGE_NAMES = {'pt_BR': 'Português (Brasil)', 'en_US': 'English (US)'}
 DISPLAY_MODES = ['Windowed', 'Borderless', 'Fullscreen']

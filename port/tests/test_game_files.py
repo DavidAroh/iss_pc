@@ -64,22 +64,39 @@ class GameLanguageTests(unittest.TestCase):
     def test_language_chunks_decide(self):
         self.chunks([ALL, lang_mask(1), lang_mask(2), lang_mask(3, 20), lang_mask(17), 0])
         self.assertEqual({1, 2, 3, 17, 20}, run.playgo_languages(self.game / 'sce_sys' / 'playgo-chunk.dat'))
-        self.assertEqual(['en', 'pt_BR', 'es_LA', 'fr_CA'], run.game_languages(self.game))
+        self.assertEqual(['en', 'pt_BR', 'es_LA', 'es', 'fr'], run.game_languages(self.game))
         self.chunks([ALL, lang_mask(18, 8, 19)])
-        self.assertEqual(['en', 'tr', 'ru'], run.game_languages(self.game))
+        self.assertEqual(['en_GB', 'tr', 'ru'], run.game_languages(self.game))
+
+    def test_european_dump_offers_its_languages(self):
+        # #194, #202, #162: Polish, Italian and Spanish (Spain) were never offered
+        self.chunks([ALL, lang_mask(18), lang_mask(2), lang_mask(4), lang_mask(5), lang_mask(3), lang_mask(16),
+                     lang_mask(7), lang_mask(8)])
+        self.assertEqual(['en_GB', 'pt_PT', 'es', 'fr', 'de', 'it', 'pl', 'ru'], run.game_languages(self.game))
+        settings = {'game_dir': str(self.game), 'game_language': 'auto'}
+        self.assertEqual('pl', run.resolve_game_language(settings, {'LANG': 'pl_PL.UTF-8'}))
+        self.assertEqual('es', run.resolve_game_language(settings, {'LANG': 'es_MX.UTF-8'}))      # closest variant
+        self.assertEqual('pt_PT', run.resolve_game_language(settings, {'LANG': 'pt_BR.UTF-8'}))
+        self.assertEqual('en_GB', run.resolve_game_language(settings, {'LANG': 'en_US.UTF-8'}))
+        self.assertEqual('en_GB', run.resolve_game_language(settings, {'LANG': 'ja_JP.UTF-8'}))
+        with mock.patch.dict(os.environ, {'LC_ALL': 'it_IT.UTF-8'}):
+            os.environ.pop('ISS_LANGUAGE', None)
+            self.assertEqual('5', run.build_env(dict(run.DEFAULT_SETTINGS, game_dir=str(self.game)))['ISS_LANGUAGE'])
 
     def test_big_endian_masks(self):
         self.chunks([lang_mask(1), lang_mask(8)], big_endian=True)
         self.assertEqual(['en', 'ru'], run.game_languages(self.game))
 
     def test_nothing_known_offers_every_language(self):
-        every = list(run.GAME_LANGUAGES)
+        every = list(run._DEFAULT_LANGUAGES)
         self.assertEqual(every, run.game_languages(self.game))          # no playgo-chunk.dat (FTP dump)
         self.assertEqual(every, run.game_languages(''))
         self.chunks([ALL, 0])                                            # no language chunk
         self.assertEqual(every, run.game_languages(self.game))
-        self.chunks([lang_mask(0, 9)])                                   # only languages the launcher lacks
+        self.chunks([lang_mask(30, 40)])                                 # only ids the PS4 has no language for
         self.assertEqual(every, run.game_languages(self.game))
+        self.chunks([lang_mask(0, 9)])
+        self.assertEqual(['ja', 'ko'], run.game_languages(self.game))
         write(self.game / 'sce_sys' / 'playgo-chunk.dat', b'junk' * 100)
         run._inspected.clear()
         self.assertEqual(every, run.game_languages(self.game))
@@ -94,7 +111,8 @@ class GameLanguageTests(unittest.TestCase):
         settings = {'game_dir': str(self.game), 'game_language': 'auto'}
         self.assertEqual(['auto', 'en', 'pt_BR'], run.game_language_choices(settings))
         self.assertEqual(['auto', 'en', 'pt_BR', 'ru'], run.game_language_choices(dict(settings, game_language='ru')))
-        self.assertEqual(['auto'] + list(run.GAME_LANGUAGES), run.game_language_choices({'game_language': 'tr'}))
+        self.assertEqual(['auto'] + list(run._DEFAULT_LANGUAGES), run.game_language_choices({'game_language': 'tr'}))
+        self.assertEqual(['auto'] + list(run._DEFAULT_LANGUAGES) + ['pl'], run.game_language_choices({'game_language': 'pl'}))
 
     def test_auto_falls_back_to_a_language_the_game_has(self):
         self.chunks([lang_mask(1), lang_mask(17)])
