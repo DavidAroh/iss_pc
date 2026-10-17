@@ -5,7 +5,9 @@
 #include "tlg_toggles.h"
 #include <atomic>
 #include <cstdlib>
+#include <mutex>
 #include <ranges>
+#include <unordered_map>
 #include "common/assert.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
@@ -21,6 +23,28 @@ namespace VideoCore {
 using namespace Vulkan;
 
 Common::IncrementalIdProvider<u64> Image::global_image_uid{};
+
+namespace {
+/// tlg: how many times the driver has refused this format/type/flags/usage combination. The
+/// first, tenth, hundredth... are logged, so the magnitude stays visible without one line per
+/// streamed image.
+std::mutex unsupported_formats_mutex;
+std::unordered_map<u64, u64> unsupported_formats;
+
+u64 UnsupportedFormatCount(u64 key) {
+    std::scoped_lock lock{unsupported_formats_mutex};
+    return ++unsupported_formats[key];
+}
+
+bool IsPowerOfTen(u64 n) {
+    for (u64 p = 1; p <= n; p *= 10) {
+        if (p == n) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
 
 static vk::ImageUsageFlags ImageUsageFlags(const Vulkan::Instance& instance,
                                            const ImageInfo& info) {
@@ -208,9 +232,24 @@ Image::Image(const Vulkan::Instance& instance, Vulkan::Runtime& runtime_,
         }
     }
     if (image_format_properties.result == vk::Result::eErrorFormatNotSupported) {
-        LOG_ERROR(Render_Vulkan, "image format {} type {} is not supported (flags {}, usage {})",
-                  vk::to_string(supported_format), vk::to_string(format_info.type),
-                  vk::to_string(format_info.flags), vk::to_string(format_info.usage));
+        // tlg: the game streams these all session long (BC 1D on NVIDIA: 178 refused creations in
+        // 5 minutes, every one at a different address), and the image is created and sampled
+        // correctly anyway, so one line per creation buries the real errors in a player's log.
+        // One line per distinct format/type/flags/usage at 1, 10, 100... occurrences.
+        const u64 key = (static_cast<u64>(static_cast<u32>(supported_format)) << 32) ^
+                        (static_cast<u64>(static_cast<u32>(format_info.type)) << 24) ^
+                        (static_cast<u64>(static_cast<u32>(
+                             static_cast<vk::ImageCreateFlags::MaskType>(format_info.flags)))
+                         << 12) ^
+                        static_cast<u64>(
+                            static_cast<vk::ImageUsageFlags::MaskType>(format_info.usage));
+        if (const u64 count = UnsupportedFormatCount(key); IsPowerOfTen(count)) {
+            LOG_ERROR(Render_Vulkan,
+                      "image format {} type {} is not supported (flags {}, usage {}); {} so far, "
+                      "logged at 1, 10, 100...",
+                      vk::to_string(supported_format), vk::to_string(format_info.type),
+                      vk::to_string(format_info.flags), vk::to_string(format_info.usage), count);
+        }
         // tlg: TLG_BC1D_LOG=1 (PROPOSTA_BC1D_NVIDIA.diff), diagnostics only: one line per image
         // created although the driver reports its format/type unsupported (BC 1D on NVIDIA), to
         // tell streaming churn from one hot image and to match against flicker moments.
