@@ -11,7 +11,7 @@ if [[ ${1:-} == --software ]]; then
     if [[ -z ${VK_DRIVER_FILES:-} ]]; then echo 'Lavapipe not found; set VK_DRIVER_FILES.' >&2; exit 1; fi
     export VK_LOADER_LAYERS_DISABLE='~implicit~'
 fi
-# TLG_PREBUILT=1 (packaged builds, the AppImage): out/tlg-probe and its GPU library are installed
+# TLG_PREBUILT=1 (packaged builds): out/tlg-probe and its GPU library are installed
 # next to this script; nothing is built and no nix-shell is needed.
 # TLG_DATA_DIR: writable directory for the generated files (out/), saves (user/) and tlg.ini;
 # by default this directory.
