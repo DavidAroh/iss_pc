@@ -170,9 +170,11 @@ void BufferCache::ExtendWriteFault(VAddr device_addr) {
 namespace {
 struct ReadbackStats {
     std::atomic<u64> count{0}, queue_ns{0}, flush_ns{0}, finish_ns{0}, bytes{0};
-    /// Deferred readbacks: recorded, joined, applied by guest threads, stale (fell back to the
-    /// download), guest time from the request to the copy applied, bytes copied.
-    std::atomic<u64> deferred{0}, joined{0}, applied{0}, stale{0}, deferred_ns{0}, deferred_bytes{0};
+    /// Deferred readbacks: recorded, joined, joined without the GPU command thread (applied on
+    /// the faulting thread, TLG_READBACK_LOCAL_JOIN), applied by guest threads, stale (fell back
+    /// to the download), guest time from the request to the copy applied, bytes copied.
+    std::atomic<u64> deferred{0}, joined{0}, local_joined{0}, applied{0}, stale{0}, deferred_ns{0},
+        deferred_bytes{0};
     /// Eager copies: pages copied, used by a fault, gone stale unread, skipped for backoff.
     std::atomic<u64> eager_copied{0}, eager_used{0}, eager_stale{0}, eager_skipped{0};
     /// Waits for a readback copy tick (WaitReadbackTick): the scheduler's own waits do not
@@ -207,11 +209,12 @@ void ReportReadbacks() {
     std::printf("Readback stats (5 s): %llu downloads, queue %.1f ms, flush %.1f ms (GPU finish %.1f ms), %.1f MB\n",
                 static_cast<unsigned long long>(n), r.queue_ns.exchange(0) / 1e6, r.flush_ns.exchange(0) / 1e6,
                 r.finish_ns.exchange(0) / 1e6, r.bytes.exchange(0) / 1048576.0);
-    std::printf("  deferred: %llu recorded, %llu joined, %llu applied, %llu stale (downloaded), "
-                "guest wait %.1f ms, %.1f MB; eager: %llu pages copied, %llu used, %llu stale unread, "
-                "%llu skipped (backoff)\n",
+    std::printf("  deferred: %llu recorded, %llu joined (%llu without the GPU thread), %llu applied, "
+                "%llu stale (downloaded), guest wait %.1f ms, %.1f MB; eager: %llu pages copied, "
+                "%llu used, %llu stale unread, %llu skipped (backoff)\n",
                 static_cast<unsigned long long>(r.deferred.exchange(0)),
                 static_cast<unsigned long long>(r.joined.exchange(0)),
+                static_cast<unsigned long long>(r.local_joined.exchange(0)),
                 static_cast<unsigned long long>(r.applied.exchange(0)),
                 static_cast<unsigned long long>(r.stale.exchange(0)), r.deferred_ns.exchange(0) / 1e6,
                 r.deferred_bytes.exchange(0) / 1048576.0,
@@ -290,13 +293,23 @@ void BufferCache::ReadMemory(VAddr device_addr, u64 size, bool is_write, bool as
         // tlg: the GPU command thread only records the copy and goes on with the game's
         // commands; this thread waits for the copy, as it would for the GPU on a console.
         std::shared_ptr<DeferredReadback> readback;
-        liverpool->SendCommand<true, true>([&] {
-            readback = StartDeferredReadback(device_addr, size);
-            if (!readback && is_write) {
-                // Nothing to copy back, as when DownloadMemory finds nothing.
-                memory_tracker->MarkRegionAsCpuModified(device_addr, size);
+        if (LocalReadbackJoin()) {
+            // tlg: a copy another guest thread recorded covers this window as well: apply it
+            // here instead of sending a command (which waits for the draw recording thread).
+            readback = PendingDeferredReadback(device_addr, size);
+            if (readback && queued_at) {
+                Readbacks().local_joined.fetch_add(1);
             }
-        });
+        }
+        if (!readback) {
+            liverpool->SendCommand<true, true>([&] {
+                readback = StartDeferredReadback(device_addr, size);
+                if (!readback && is_write) {
+                    // Nothing to copy back, as when DownloadMemory finds nothing.
+                    memory_tracker->MarkRegionAsCpuModified(device_addr, size);
+                }
+            });
+        }
         if (readback && !FinishDeferredReadback(*readback, true)) {
             // The GPU (or a CPU write without a fault) changed the memory after the copy was
             // recorded: download it the old way, which first recovers the stale copy's ranges.
@@ -1037,6 +1050,19 @@ bool BufferCache::DeferredReadbackEnabled() {
     return enabled;
 }
 
+bool BufferCache::LocalReadbackJoin() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("TLG_READBACK_LOCAL_JOIN");
+        const bool on = env && env[0] == '1';
+        if (on) {
+            // In last_run.log whatever the GPU log level, so a tester's log shows the mode.
+            std::printf("GPU: local readback join on (TLG_READBACK_LOCAL_JOIN=1)\n");
+        }
+        return on;
+    }();
+    return enabled;
+}
+
 std::shared_ptr<BufferCache::DeferredReadback> BufferCache::StartDeferredReadback(VAddr device_addr,
                                                                                   u64 size) {
     PruneDeferredReadbacks();
@@ -1092,6 +1118,25 @@ std::shared_ptr<BufferCache::DeferredReadback> BufferCache::StartDeferredReadbac
         Readbacks().deferred_bytes.fetch_add(total_size_bytes);
     }
     return readback;
+}
+
+std::shared_ptr<BufferCache::DeferredReadback> BufferCache::PendingDeferredReadback(
+    VAddr device_addr, u64 size) {
+    if (!deferred_count.load(std::memory_order_acquire)) {
+        return nullptr;
+    }
+    const auto window = GetReadbackWindow(device_addr, size);
+    const VAddr window_start = std::get<1>(window);
+    const VAddr window_end = std::get<2>(window);
+    std::scoped_lock lock{deferred_mutex};
+    for (const auto& readback : deferred_readbacks) {
+        // The same test StartDeferredReadback joins with on the GPU command thread.
+        if (!readback->Done() && !readback->stale && readback->start <= window_start &&
+            window_end <= readback->end) {
+            return readback;
+        }
+    }
+    return nullptr;
 }
 
 bool BufferCache::FinishDeferredReadback(DeferredReadback& readback, bool wait) {
@@ -1230,16 +1275,10 @@ bool BufferCache::CpuWriteMerge(VAddr dst, const void* src, int fill, u64 size) 
         if (!memory->TryWriteBacking(reinterpret_cast<void*>(dst), src, size)) {
             return false;
         }
-    } else {
-        std::array<u8, 4096> chunk;
-        chunk.fill(static_cast<u8>(fill));
-        for (u64 done = 0; done < size;) {
-            const u64 n = std::min<u64>(chunk.size(), size - done);
-            if (!memory->TryWriteBacking(reinterpret_cast<void*>(dst + done), chunk.data(), n)) {
-                return done == 0 ? false : (std::memset(reinterpret_cast<void*>(dst + done), fill, size - done), true);
-            }
-            done += n;
-        }
+    } else if (!memory->FillBacking(reinterpret_cast<void*>(dst), fill, size)) {
+        // Part of the range has no backing: the guest writes it itself. The runs written through
+        // the backing hold the same fill byte, so a partial fill is not lost.
+        return false;
     }
     std::scoped_lock lock{merge_mutex};
     VAddr start = dst, end = dst + size;
