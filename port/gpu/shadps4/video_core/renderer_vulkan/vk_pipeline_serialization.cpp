@@ -283,13 +283,14 @@ vk::ResultValue<vk::UniquePipeline> CreateCachedGraphicsPipeline(
     using namespace PipelineBinaryCache;
     const auto& dispatch = VULKAN_HPP_DEFAULT_DISPATCHER;
     const bool enabled = global_key.keySize && EmulatorSettings.IsPipelineCacheEnabled();
-    const auto create = [&](vk::PipelineCache used_cache, const auto& used_info, bool restored) {
+    const auto create = [&](vk::PipelineCache used_cache, const auto& used_info, bool restored,
+                            bool retry = true) {
         const auto started = std::chrono::steady_clock::now();
         auto result = device.createGraphicsPipelineUnique(used_cache, used_info);
         // tlg: a failure the driver may recover from is tried again (a binary that failed to
         // restore is compiled instead).
         for (u32 attempt = 1;
-             !restored && result.result != vk::Result::eSuccess &&
+             retry && !restored && result.result != vk::Result::eSuccess &&
              RetryPipelineCreation(result.result, attempt, "graphics",
                                    fmt::format("{:#x}", std::hash<GraphicsPipelineKey>{}(key)));
              ++attempt) {
@@ -427,7 +428,8 @@ vk::ResultValue<vk::UniquePipeline> CreateCachedGraphicsPipeline(
     ++binary_misses;
     flags.flags = vk::PipelineCreateFlags2{static_cast<VkPipelineCreateFlags>(info.flags)} |
                   vk::PipelineCreateFlagBits2::eCaptureDataKHR;
-    auto result = create(nullptr, captured_info, false);
+    // tlg: not retried: a failed capture compile falls back to a plain compile, which is.
+    auto result = create(nullptr, captured_info, false, false);
     if (result.result != vk::Result::eSuccess) {
         LOG_INFO(Render_Vulkan, "tlg: pipeline binary capture creation failed ({})",
                  vk::to_string(result.result));
