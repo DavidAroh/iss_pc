@@ -924,6 +924,16 @@ public:
     /// each whole SubmitExecution unless TLG_SPLIT_SUBMIT_LOCK=1.
     static std::mutex submit_mutex;
 
+    /// tlg: the graphics queue lock for a host call that synchronizes the device or its queues
+    /// outside a submission or a present (vkDeviceWaitIdle, vkDestroySwapchainKHR in the
+    /// swapchain paths): Vulkan needs host access to every queue of the device externally
+    /// synchronized, and other threads submit while the presenter rebuilds the swapchain. Lock
+    /// order is execution_mutex then submit_mutex, so the caller must hold no scheduler lock
+    /// (and must not take one while holding this).
+    [[nodiscard]] static std::unique_lock<std::mutex> LockQueue() {
+        return std::unique_lock<std::mutex>{submit_mutex};
+    }
+
     /// tlg: TLG_SPLIT_SUBMIT_LOCK=1: each scheduler serializes its own SubmitExecution
     /// (execution_mutex) and takes submit_mutex only around the queue calls. Lock order:
     /// execution_mutex, then submit_mutex.
