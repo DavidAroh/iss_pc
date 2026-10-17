@@ -14,7 +14,7 @@ Tudo vem do **seu** PS4 (GoldHEN + Itemzflow). Nada disso vai no download. Use *
 | `art/` (`cache/`, `movies/`, `ui/`) | base + update | conteúdo do jogo (o update substitui parte de `art/cache` e `art/movies`) |
 | `playgo.pgm`, `sce_discmap.plt`, `sce_discmap_patch.plt` | base + update | mapa de arquivos e instalação |
 
-**Versões do jogo:** testado com **CUSA00223 (1.00 + update 1.07)**; o launcher só aceita a pasta com o update 1.07. Há relato de que o CUSA00004 também inicia (ainda não testado a fundo). Idiomas: o launcher oferece só os idiomas que o `sce_sys/playgo-chunk.dat` do seu dump marca, entre inglês, português do Brasil, espanhol latino, francês do Canadá, turco e russo; sem esse arquivo (o FTP não mostra) ele oferece os 6, e turco e russo só funcionam se os arquivos do seu dump tiverem esses idiomas.
+**Versões do jogo:** testado com **CUSA00223 (1.00 + update 1.07)**; o launcher só aceita a pasta com o update 1.07. Há relato de que o CUSA00004 também inicia (ainda não testado a fundo). Idiomas: o launcher oferece só os idiomas que o `sce_sys/playgo-chunk.dat` do seu dump marca, entre os 30 idiomas do PS4 (um dump europeu traz, por exemplo, italiano, polonês, alemão e espanhol da Espanha); sem esse arquivo (o FTP não mostra) ele oferece os 6 do CUSA00223 (inglês, português do Brasil, espanhol latino, francês do Canadá, turco e russo), e cada um só funciona se os arquivos do seu dump tiverem o idioma.
 
 **Requisitos do PC:** Windows 10 (1903+)/11 64 bits ou Linux x86-64 (glibc 2.39+), placa de vídeo com Vulkan 1.3 (6 GB de VRAM recomendados) e ~33 GB livres para o jogo. O `sce_sys/pic1.png` do seu dump aparece como fundo do launcher (lido da sua pasta, nunca distribuído).
 
@@ -38,7 +38,7 @@ Everything comes from **your own** PS4 (GoldHEN + Itemzflow). None of it is in t
 | `art/` (`cache/`, `movies/`, `ui/`) | base + update | game content (the update replaces part of `art/cache` and `art/movies`) |
 | `playgo.pgm`, `sce_discmap.plt`, `sce_discmap_patch.plt` | base + update | file map and install info |
 
-**Game versions:** tested with **CUSA00223 (1.00 + update 1.07)**; the launcher only accepts the folder with the 1.07 update. There is a report that CUSA00004 also boots (not tested in depth yet). Languages: the launcher only offers the languages your dump's `sce_sys/playgo-chunk.dat` lists, among English, Brazilian Portuguese, Latin American Spanish, Canadian French, Turkish and Russian; without that file (FTP does not show it) it offers all 6, and Turkish and Russian only work if your dump's files have those languages.
+**Game versions:** tested with **CUSA00223 (1.00 + update 1.07)**; the launcher only accepts the folder with the 1.07 update. There is a report that CUSA00004 also boots (not tested in depth yet). Languages: the launcher only offers the languages your dump's `sce_sys/playgo-chunk.dat` lists, out of the PS4's 30 (a European dump has, for example, Italian, Polish, German and Spain Spanish); without that file (FTP does not show it) it offers the 6 of CUSA00223 (English, Brazilian Portuguese, Latin American Spanish, Canadian French, Turkish and Russian), and each only works if your dump's files have that language.
 
 **PC requirements:** 64-bit Windows 10 (1903+)/11 or x86-64 Linux (glibc 2.39+), a graphics card with Vulkan 1.3 (6 GB of VRAM recommended) and ~33 GB free for the game. The `sce_sys/pic1.png` from your dump is used as the launcher's background (read from your folder, never distributed).
 

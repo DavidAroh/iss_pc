@@ -141,7 +141,7 @@ O launcher é o programa que abre ao executar **inFAMOUS Second Son**. O novo (Q
 
 **Idioma da interface:** português (Brasil) ou inglês (EUA), que o launcher escolhe pelo idioma do sistema e dá para trocar. Quando você escolhe um, o launcher passa a escolha ao jogo (`ISS_UI_LANG`) para o overlay.
 
-**Idioma do jogo:** a primeira opção é **Automático (idioma do sistema)**, o padrão, e depois vêm 6 idiomas: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) e Русский (8). Português vira pt-BR, espanhol vira es-LA, francês vira fr-CA, turco e russo ficam como são, e o resto vira inglês. A escolha vale na próxima partida e vira `ISS_LANGUAGE` (um `ISS_LANGUAGE` definido por você vence). **Só funciona se os arquivos do seu jogo tiverem o idioma:** turco e russo, por exemplo, só aparecem se o seu dump tiver esses idiomas. É separado do idioma da interface.
+**Idioma do jogo:** a primeira opção é **Automático (idioma do sistema)**, o padrão, e depois vêm os idiomas que o `sce_sys/playgo-chunk.dat` do seu dump marca, entre os 30 do PS4 (inglês dos EUA e do Reino Unido, português do Brasil e de Portugal, espanhol latino e da Espanha, francês e francês do Canadá, alemão, italiano, holandês, polonês, turco, russo, japonês, coreano, chinês e outros); sem esse arquivo (dumps por FTP) vêm os 6 do CUSA00223: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) e Русский (8). O automático segue o idioma e a região do sistema (es_ES vira espanhol da Espanha, es_MX vira latino, pt_PT vira português de Portugal) e, se o jogo não tiver esse idioma, usa a variante mais próxima (espanhol ↔ latino, português ↔ brasileiro...), senão o inglês. A escolha vale na próxima partida e vira `ISS_LANGUAGE` (um `ISS_LANGUAGE` definido por você vence). **Só funciona se os arquivos do seu jogo tiverem o idioma:** turco e russo, por exemplo, só aparecem se o seu dump tiver esses idiomas. É separado do idioma da interface.
 
 **Atualizações:** a tela **Atualizações** faz uma única consulta HTTPS à última release no GitHub (nada seu é enviado), mostra as notas no idioma da interface e o botão **Baixar** só abre a página da release. **Ela não baixa nem instala nada: um atualizador automático de verdade ainda não existe.** "Verificar ao abrir" vem desligado.
 
@@ -348,6 +348,8 @@ cd port && ISS_LTO=OFF bash build.sh   # Linux: SDL3, Vulkan, FFmpeg, FreeType, 
 cd .. && ./infamous_launcher_qt.sh     # launcher Qt (precisa do PySide6); ./infamous_launcher.sh é o Tk; ./run_infamous.sh pelo terminal
 ```
 
+Um clone compila sem otimização guiada por perfil (PGO): o perfil (`port/pgo/*.gcda`) não está no repositório e os pacotes das releases também são compilados sem ele, então um build local e um pacote devem render igual. `ISS_PGO=generate` gera um binário instrumentado que grava o perfil enquanto você joga, e o build seguinte o usa.
+
 No Windows, o build roda no MSYS2 CLANG64 ([`port/packaging/windows/README.md`](port/packaging/windows/README.md)). O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) mostra o processo completo nas duas plataformas.
 
 ## Como funciona
@@ -502,7 +504,7 @@ The launcher is the program that opens when you run **inFAMOUS Second Son**. The
 
 **Interface language:** Portuguese (Brazil) or English (US), which the launcher picks from the system language and you can change. When you pick one, the launcher passes it to the game (`ISS_UI_LANG`) for the overlay.
 
-**Game language:** the first option is **Automatic (system language)**, the default, followed by 6 languages: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) and Русский (8). Portuguese becomes pt-BR, Spanish becomes es-LA, French becomes fr-CA, Turkish and Russian stay as they are, and anything else becomes English. The choice applies on the next start and becomes `ISS_LANGUAGE` (an `ISS_LANGUAGE` you set yourself wins). **It only works if your game files have that language:** Turkish and Russian, for example, only show up if your dump has them. It is separate from the interface language.
+**Game language:** the first option is **Automatic (system language)**, the default, followed by the languages your dump's `sce_sys/playgo-chunk.dat` lists, out of the PS4's 30 (US and UK English, Brazilian and European Portuguese, Latin American and Spain Spanish, French and Canadian French, German, Italian, Dutch, Polish, Turkish, Russian, Japanese, Korean, Chinese and more); without that file (FTP dumps) the 6 of CUSA00223: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) and Русский (8). Automatic follows the system's language and region (es_ES is Spain Spanish, es_MX Latin American, pt_PT European Portuguese) and, when the game lacks that language, the closest variant (Spain/Latin American Spanish, European/Brazilian Portuguese...), else English. The choice applies on the next start and becomes `ISS_LANGUAGE` (an `ISS_LANGUAGE` you set yourself wins). **It only works if your game files have that language:** Turkish and Russian, for example, only show up if your dump has them. It is separate from the interface language.
 
 **Updates:** the **Updates** screen makes a single HTTPS query for the latest release on GitHub (nothing of yours is sent), shows the notes in the interface language, and the **Download** button only opens the release page. **It does not download or install anything: a real automatic updater does not exist yet.** "Check on open" is off by default.
 
@@ -708,6 +710,8 @@ git clone --recursive https://github.com/HayatoG/iss_pc.git && cd iss_pc
 cd port && ISS_LTO=OFF bash build.sh   # Linux: SDL3, Vulkan, FFmpeg, FreeType, Boost, fmt, Zydis, glslang
 cd .. && ./infamous_launcher_qt.sh     # Qt launcher (needs PySide6); ./infamous_launcher.sh is the Tk one; ./run_infamous.sh from a terminal
 ```
+
+A clone builds without profile-guided optimization (PGO): the profile (`port/pgo/*.gcda`) is not in the tree, and the release packages are built without it as well, so a local build and a package should perform alike. `ISS_PGO=generate` builds an instrumented binary that writes the profile while you play, and the next build uses it.
 
 On Windows, the build runs in MSYS2 CLANG64 ([`port/packaging/windows/README.md`](port/packaging/windows/README.md)). The workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) shows the full process on both platforms.
 

@@ -27,7 +27,7 @@ de luzes), confirmado no Windows e no Linux.
 | Stencil `test_val`/`op_val` | uma referência Vulkan quando as máscaras permitem |
 | Cache de shaders | pasta com a chave do tradutor; o cache antigo é apagado sozinho |
 | Launcher Qt | padrão nos pacotes, 8 telas, pt-BR/en-US, Tk de reserva ("classic"), `--selftest` no CI |
-| Idioma do jogo | "Automático (idioma do sistema)" por padrão e 6 idiomas (inclui turco e russo, se o dump tiver) |
+| Idioma do jogo | "Automático (idioma do sistema)" por padrão e os 30 idiomas do PS4 que o dump marca (italiano, polonês, espanhol da Espanha... nos dumps europeus); sem `playgo-chunk.dat`, os 6 do CUSA00223 |
 | Saves e dados | pasta configurável (`ISS_USER_DIR`, arquivo-ponteiro), achar saves de outras instalações, backup antes de cada partida, exportar/importar `.zip` |
 | Correções experimentais | BP01–BP12 (shadPS4, SotC, bbport, Mrsuss/0xCydral, CTR) com chave individual, perfil Recomendado e `TLG_BACKPORTS=0`; log com `Config:`, `Backports:` e `Backport hits` |
 | Oclusão | modo 3 (contagem zero) por padrão: corrige faróis que piscavam e brilho que atravessava personagens (Windows e Linux) |
@@ -53,7 +53,7 @@ de luzes), confirmado no Windows e no Linux.
 | 11 | Mouse | validar com mais jogadores (câmera, botões, modo touchpad) |
 | 12 | Windows | validar em mais PCs e placas (hoje o teste é por relatos de jogadores) |
 | 13 | `param.sfo` 1.07 na visão do jogo | o `sce_sys` do update não traz o `param.sfo`, e a visão ficava com o 1.00 (sem ele os mods do 1.07 não aparecem). O `make_game_view.py` agora liga o de maior `APP_VER` (o do update, um `patch-meta/param.sfo` ou o passado como 4º argumento) e o launcher avisa quando o `param.sfo` não é o 1.07; falta conferir com um dump real |
-| 14 | Idiomas | os launchers só oferecem os idiomas que o `sce_sys/playgo-chunk.dat` do dump marca (máscara de idioma dos chunks do PlayGo; o `param.sfo` não diz isso) e o "Automático" cai no inglês quando falta o idioma do sistema; sem o arquivo (dump por FTP) ou sem chunks de idioma, ficam os 6. Falta conferir num dump real quais idiomas o CUSA00223 marca |
+| 14 | Idiomas | os launchers oferecem, entre os 30 idiomas do PS4, os que o `sce_sys/playgo-chunk.dat` do dump marca (máscara de idioma dos chunks do PlayGo; o `param.sfo` não diz isso), cada um com o próprio id (#194, #202, #162, #196); o "Automático" segue idioma e região do sistema e cai na variante mais próxima, depois no inglês; sem o arquivo (dump por FTP) ou sem chunks de idioma, ficam os 6 do CUSA00223. Falta conferir num dump real; o turco que não pega (#204) ainda não tem causa conhecida (o id 19 chega ao jogo) |
 | 15 | Prefixo `ISS_`/`TLG_` | o jogador usa `ISS_*` e o núcleo ainda lê `TLG_*` por dentro; quando todos os ports usarem o ps4_core, o prefixo comum vira `PSCORE_` |
 
 ---
@@ -80,5 +80,6 @@ on Windows; (7) GPUs with 4 GB of VRAM; (8) Quadro/Maxwell; (9) BC 1D textures; 
 launcher for packaged builds: download, SHA-256 check against the release's SHA256SUMS, install into a new
 sibling folder; to be tried on a real release); (11) validating the mouse; (12) validating Windows on more PCs; (13) the 1.07 `param.sfo` in the
 game view (make_game_view.py now links the newest one and the launcher warns about a 1.00 one; to be checked
-with a real dump); (14) game languages from the game data (read from the PlayGo chunks of `playgo-chunk.dat`, all 6
-when it cannot tell; to be checked with a real dump); (15) the `ISS_`/`TLG_`/`PSCORE_` prefix.
+with a real dump); (14) game languages from the game data (any of the PS4's 30 that the PlayGo chunks of `playgo-chunk.dat`
+list, the 6 of CUSA00223 when it cannot tell; to be checked with a real dump; Turkish not applying, #204, is not
+explained yet); (15) the `ISS_`/`TLG_`/`PSCORE_` prefix.
