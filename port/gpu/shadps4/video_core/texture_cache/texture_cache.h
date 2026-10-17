@@ -111,6 +111,12 @@ public:
         return registry_generation.load(std::memory_order_acquire);
     }
 
+    /// tlg: changes whenever the collector destroys a sampler, so a memo of resolved samplers
+    /// (SamplerSetMemo in vk_rasterizer.cpp) can drop the ones that would dangle.
+    [[nodiscard]] u64 SamplerGeneration() const noexcept {
+        return sampler_generation.load(std::memory_order_acquire);
+    }
+
     /// tlg: FindImage's access tick for an image found by a memoized lookup. The LRU touch
     /// FindImage also does happens in UpdateImage (FindTexture), which every binding reaches.
     void MarkFound(ImageId image_id) {
@@ -245,9 +251,18 @@ public:
 
     /// Retrieves the sampler that matches the provided S# descriptor.
     /// extra_lod_bias: tlg, added to the S#'s bias (reduced scene rendering).
+    /// lru_id: tlg, receives the sampler's LRU entry for TouchSamplers (SamplerSetMemo).
     [[nodiscard]] vk::Sampler GetSampler(const AmdGpu::Sampler& sampler,
                                          AmdGpu::BorderColorBuffer border_color_base,
-                                         bool is_depth, float extra_lod_bias = 0.0f);
+                                         bool is_depth, float extra_lod_bias = 0.0f,
+                                         u64* lru_id = nullptr);
+
+    /// tlg (SamplerSetMemo): marks the samplers of a memoized set as used, under one lock. A
+    /// memo hit skips GetSampler's hash and map lookup, so it must still keep those LRU entries
+    /// fresh: the collector evicts by age and a recorded command may still reference them.
+    /// False when a sampler was destroyed since `generation` (the ids may be gone or reused),
+    /// which makes the caller resolve the samplers again.
+    bool TouchSamplers(const u64* lru_ids, u32 count, u64 generation);
 
     /// Retrieves the image with the specified id.
     Image* TryGetImage(ImageId id, u64 uid) {
@@ -626,6 +641,8 @@ private:
     };
     std::array<FindImageCacheEntry, 1024> find_image_cache{};
     std::atomic<u64> registry_generation{0};
+    /// tlg: bumped when the collector destroys a sampler (SamplerGeneration).
+    std::atomic<u64> sampler_generation{0};
     std::mutex samplers_mutex;
     std::mutex download_images_mutex;
     struct MetaDataInfo {

@@ -82,7 +82,10 @@ public:
     }
 
     using DescriptorWrites = std::vector<vk::WriteDescriptorSet>;
-    void BindResources(DescriptorWrites& set_writes, const Shader::PushData& push_data) const;
+    /// tlg: `count` of `set_writes` are this draw's writes; the vector may hold more (the pool in
+    /// vk_rasterizer.cpp keeps its storage between draws, SetWritePool).
+    void BindResources(DescriptorWrites& set_writes, u32 count,
+                       const Shader::PushData& push_data) const;
 
 protected:
     [[nodiscard]] std::string GetDebugString() const;
