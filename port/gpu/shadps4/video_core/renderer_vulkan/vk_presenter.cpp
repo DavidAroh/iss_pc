@@ -52,6 +52,20 @@ namespace Vulkan {
 // free presentation frame in GetRenderFrame (the swapchain holding frames).
 std::atomic<u64> g_tlg_frames_ahead_wait_ns{0};
 std::atomic<u64> g_tlg_free_frame_wait_ns{0};
+/// tlg: the wait for the queue lock before presenting (other threads' submissions).
+std::atomic<u64> g_tlg_present_lock_wait_ns{0};
+
+/// tlg: takes the graphics queue lock for a present and counts the wait (TLG_FRAME_STATS).
+static std::unique_lock<std::mutex> LockQueueForPresent() {
+    const auto wait_start = std::chrono::steady_clock::now();
+    std::unique_lock<std::mutex> lock{Scheduler::submit_mutex};
+    g_tlg_present_lock_wait_ns.fetch_add(
+        static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             std::chrono::steady_clock::now() - wait_start)
+                             .count()),
+        std::memory_order_relaxed);
+    return lock;
+}
 
 bool CanBlitToSwapchain(const vk::PhysicalDevice physical_device, vk::Format format) {
     const vk::FormatProperties props{physical_device.getFormatProperties(format)};
@@ -712,7 +726,7 @@ void Presenter::PresentLoadingFrame() {
     info.AddSignal(swapchain.GetPresentReadySemaphore());
     present_scheduler.Flush(info);
     {
-        std::scoped_lock submit_lock{Scheduler::submit_mutex};
+        const auto submit_lock = LockQueueForPresent();
         swapchain.Present();
     }
     // A few frames a second during start-up: waiting keeps semaphores and the swapchain simple.
@@ -880,7 +894,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
 
     // Present to swapchain.
     {
-        std::scoped_lock submit_lock{Scheduler::submit_mutex};
+        const auto submit_lock = LockQueueForPresent();
         if (!swapchain.Present() && window.GetWidth() != 0 && window.GetHeight() != 0) {
             swapchain.Recreate(window.GetWidth(), window.GetHeight());
         }

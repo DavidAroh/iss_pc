@@ -46,6 +46,7 @@ extern std::atomic<u64> g_tlg_capture_ns, g_tlg_async_ns, g_tlg_compile_wait_ns;
 extern std::atomic<u64> g_tlg_snapshot_ns, g_tlg_guest_wait_ns;
 extern std::atomic<u32> g_tlg_pending_draws;
 extern std::atomic<u64> g_tlg_frames_ahead_wait_ns, g_tlg_free_frame_wait_ns;
+extern std::atomic<u64> g_tlg_present_lock_wait_ns;
 extern std::atomic<int> g_tlg_recorder_cpu_clock;
 extern std::atomic<u32> g_tlg_recorder_cpu_tid;
 extern std::atomic<u64> g_tlg_recorder_spin_ns;
@@ -615,6 +616,7 @@ void VideoOutDriver::Flip(const Request& req) {
             // CPU: stage B and the recorder pause up to TLG_PIPE_SPIN_US for the next packet.
             const double frames_ahead_ms = Vulkan::g_tlg_frames_ahead_wait_ns.exchange(0) / 1e6;
             const double free_frame_ms = Vulkan::g_tlg_free_frame_wait_ns.exchange(0) / 1e6;
+            const double present_lock_ms = Vulkan::g_tlg_present_lock_wait_ns.exchange(0) / 1e6;
             const u64 flip_samples = flip_queue_samples.exchange(0);
             const double flip_queue_ms =
                 flip_samples ? flip_queue_wait_ns.exchange(0) / 1e6 / double(flip_samples) : 0.0;
@@ -627,10 +629,11 @@ void VideoOutDriver::Flip(const Request& req) {
                 HelperThreadCpuNs(rasterizer.DrawPipeCpuClock(), rasterizer.DrawPipeCpuThreadId());
             const u64 vkrec_cpu = HelperThreadCpuNs(Vulkan::g_tlg_recorder_cpu_clock.load(),
                                                     Vulkan::g_tlg_recorder_cpu_tid.load());
-            std::printf("Frame waits: GPU frames %.1f ms, free frame %.1f ms, flip queue "
-                        "%.2f ms over %llu flips; %.1f submissions/frame; helper CPU: draw "
-                        "recording %.1f ms, Vulkan recorder %.1f ms (spin %.1f ms)\n",
-                        frames_ahead_ms, free_frame_ms, flip_queue_ms,
+            std::printf("Frame waits: GPU frames %.1f ms, free frame %.1f ms, present lock "
+                        "%.1f ms, flip queue %.2f ms over %llu flips; %.1f submissions/frame; "
+                        "helper CPU: draw recording %.1f ms, Vulkan recorder %.1f ms (spin "
+                        "%.1f ms)\n",
+                        frames_ahead_ms, free_frame_ms, present_lock_ms, flip_queue_ms,
                         static_cast<unsigned long long>(flip_samples), subs_per_frame,
                         drawrec_cpu > last_drawrec_cpu ? (drawrec_cpu - last_drawrec_cpu) / 1e6 : 0.0,
                         vkrec_cpu > last_vkrec_cpu ? (vkrec_cpu - last_vkrec_cpu) / 1e6 : 0.0,

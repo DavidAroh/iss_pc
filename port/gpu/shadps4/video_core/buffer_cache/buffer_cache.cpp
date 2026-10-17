@@ -1580,10 +1580,14 @@ void BufferCache::SubmitPendingArenaBinds(Vulkan::SubmitInfo& info) {
     };
 
     info.AddWait(signal_sema, signal_tick);
+    // tlg: the submit callback runs inside SubmitExecution, which with TLG_SPLIT_SUBMIT_LOCK=1
+    // holds the queue lock only for its own submit.
+    auto queue_lock = Vulkan::Scheduler::LockQueueInSubmit();
     const auto bind_start = std::chrono::steady_clock::now();
     auto submit_result = instance.GetGraphicsQueue().bindSparse(sparse_info);
     ASSERT_MSG(submit_result != vk::Result::eErrorDeviceLost, "Device lost during submit");
     const auto elapsed = std::chrono::steady_clock::now() - bind_start;
+    queue_lock = std::unique_lock<std::mutex>{};
     // Sparse binds are reported to get slower the more memory is bound on NVIDIA drivers. Log the
     // slow ones (the first few, then every 32nd) with how much is resident, to confirm the cost.
     if (elapsed >= std::chrono::milliseconds{2}) {

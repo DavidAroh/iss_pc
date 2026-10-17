@@ -80,6 +80,18 @@ bool Scheduler::FullBarriers() {
     return enabled;
 }
 
+bool Scheduler::SplitSubmitLock() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("TLG_SPLIT_SUBMIT_LOCK");
+        const bool on = env && env[0] == '1';
+        if (on) {
+            std::printf("GPU: split submit lock on (TLG_SPLIT_SUBMIT_LOCK=1)\n");
+        }
+        return on;
+    }();
+    return enabled;
+}
+
 void Scheduler::RecordFullBarrier(vk::CommandBuffer cmdbuf) {
     const vk::MemoryBarrier2 barrier{
         .srcStageMask = vk::PipelineStageFlagBits2::eAllCommands,
@@ -495,13 +507,19 @@ void Scheduler::AllocateWorkerCommandBuffers() {
 }
 
 void Scheduler::SubmitExecution(SubmitInfo& info) {
-    std::scoped_lock lk{submit_mutex};
+    // tlg: TLG_SPLIT_SUBMIT_LOCK=1 serializes only this scheduler's submissions (its record
+    // chunks, command buffer and tick) and takes the queue lock just for the queue calls, so
+    // a present on another thread no longer waits out this scheduler's recorder drain and
+    // host copies below.
+    const bool split = SplitSubmitLock();
+    std::unique_lock lk{split ? execution_mutex : submit_mutex};
     const u64 signal_value = work_semaphore.NextTick();
     work_since_submit.store(0, std::memory_order_relaxed);
 
 #if TRACY_GPU_ENABLED
     auto* profiler_ctx = instance.GetProfilerContext();
     if (profiler_ctx) {
+        const auto queue_lock = LockQueueInSubmit(); // the profiler context is shared
         profiler_scope->~VkCtxScope();
         TracyVkCollect(profiler_ctx, current_cmdbuf);
     }
@@ -548,11 +566,18 @@ void Scheduler::SubmitExecution(SubmitInfo& info) {
     };
 
     ImGui::Core::TextureManager::Submit();
-    auto submit_result = instance.GetGraphicsQueue().submit(submit_info, info.fence);
+    const auto submit_result = [&] {
+        const auto queue_lock = LockQueueInSubmit();
+        return instance.GetGraphicsQueue().submit(submit_info, info.fence);
+    }();
     ASSERT_MSG(submit_result != vk::Result::eErrorDeviceLost, "Device lost during submit");
 
     work_semaphore.Refresh();
     AllocateWorkerCommandBuffers();
+    if (split) {
+        // tlg: pending ops have their own lock, and one may submit again.
+        lk.unlock();
+    }
 
     // Apply pending operations
     PopPendingOperations();
