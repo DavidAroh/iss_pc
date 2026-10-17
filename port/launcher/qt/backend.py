@@ -155,6 +155,7 @@ class Backend(QObject):
     message = Signal(str)
     guideChanged = Signal()
     scrollRequested = Signal(int)   # used by the screenshot tool
+    modsChanged = Signal()
 
     def __init__(self, settings=None, translator=None, probes=None):
         """probes: optional dict of callables replacing the slow/hardware ones (tests, screenshots)."""
@@ -576,6 +577,32 @@ class Backend(QObject):
         self._save_fixes()
         self.advanced.refresh_all()
         self.refresh()
+
+    # -- mods/cheats -----------------------------------------------------------------------------
+    @Property('QVariantList', notify=modsChanged)
+    def modsModel(self):
+        """Every shadPS4/GoldHEN cheat XML found in the mods folder for this game's version,
+        with its current enabled state. Nothing here has any effect until turned on."""
+        try:
+            mods = tlg_run.list_mods(self.settings)
+        except Exception:
+            mods = []
+        return [{'key': key, 'name': name or key, 'note': note or '', 'on': bool(enabled)}
+                for key, name, note, enabled in mods]
+
+    @Slot(str, bool)
+    def setModEnabled(self, key, enabled):
+        tlg_run.set_mod_enabled(key, enabled)
+        self.modsChanged.emit()
+
+    @Slot()
+    def refreshMods(self):
+        self.modsChanged.emit()
+
+    @Slot()
+    def openModsFolder(self):
+        from PySide6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(tlg_run.mods_dir())))
 
     @Property(str, notify=profileChanged)
     def profileText(self):
