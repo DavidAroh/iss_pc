@@ -1217,6 +1217,10 @@ struct PipelineCache::BackgroundWarmup {
     /// stages, and build each pipeline when the game first asks for it (the driver's own cache
     /// has it from the first start's compilation, so that takes about a millisecond).
     bool stages_only = false;
+    /// tlg: TLG_WARMUP_BUILD_CACHED=1 (default off): with `stages_only`, still build the pipelines
+    /// of the store in the background: on a driver whose cache lost them (an update, a crash, a
+    /// pipeline built in the last minute) the game would otherwise compile them where it draws.
+    bool build_cached = false;
     u32 loaded = 0, threads = 0;
     u32 merge_refused_initial = 0, merge_refused_moved = 0, merge_refused_taken = 0;
     std::chrono::steady_clock::time_point started, last_batch;
@@ -1242,16 +1246,14 @@ bool PipelineCache::StartBackgroundWarmUp() {
                                              Storage::GameCacheDir() / Precompile::DoneFile, ec);
         if (warm.stages_only) {
             UseDefaultPipelineWait();
-        }
-        // TLG_LAZY_PROGRAMS=0 keeps loading every stage in the background instead.
-        const char* lazy = std::getenv("TLG_LAZY_PROGRAMS");
-        if (warm.stages_only && !(lazy && *lazy == '0')) {
-            lazy_programs = true;
-            std::printf("Pipeline warm-up: none; programs load from the cache on first use "
-                        "(%zu programs on disk)\n", next_permutation.size());
-            delete background;
-            background = nullptr;
-            return true;
+            // tlg: TLG_WARMUP_BUILD_CACHED=1 also builds the pipelines of a precompiled cache in
+            // the background (covers a driver cache lost to an update or a crash, at the cost of
+            // CPU time while the game runs); by default they are left to the driver's own cache.
+            static const bool build_cached = [] {
+                const char* v = std::getenv("TLG_WARMUP_BUILD_CACHED");
+                return v && *v == '1';
+            }();
+            warm.build_cached = build_cached;
         }
     }
     warm.threads = WarmupThreadCount(std::max(1u, std::thread::hardware_concurrency()));
@@ -1271,7 +1273,11 @@ bool PipelineCache::StartBackgroundWarmUp() {
         return true;
     });
     std::printf("Pipeline warm-up: loading %s in the background (%u threads)\n",
-                warm.stages_only ? "shader stages only" : "pipelines", warm.threads);
+                warm.stages_only
+                    ? (warm.build_cached ? "the precompiled cache's shader stages and pipelines"
+                                         : "shader stages only")
+                    : "pipelines",
+                warm.threads);
     return true;
 }
 
@@ -1419,6 +1425,7 @@ void PipelineCache::PumpWarmUp() {
         warm.loaded += kept;
         warm.done.fetch_add(1, std::memory_order_relaxed);
     }
+    warmup_pipelines_loaded = warm.loaded; // for the worker cache re-seed (SeedWorkerCaches)
 
     const auto now = std::chrono::steady_clock::now();
     if (now - warm.last_batch < 4ms) {
@@ -1457,7 +1464,7 @@ void PipelineCache::PumpWarmUp() {
                 fetch = stage.fetch; // the blocking load keeps the last stage's too
             }
         }
-        if (!usable || warm.stages_only) {
+        if (!usable || (warm.stages_only && !warm.build_cached)) {
             warm.done.fetch_add(1, std::memory_order_relaxed);
             continue;
         }

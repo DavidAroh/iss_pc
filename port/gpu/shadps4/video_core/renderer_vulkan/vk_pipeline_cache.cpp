@@ -970,7 +970,30 @@ bool PipelineCache::AsyncCompilation() const {
 }
 
 void PipelineCache::SeedWorkerCaches() {
-    if (!compiler || worker_caches_seeded) {
+    if (!compiler) {
+        return;
+    }
+    // tlg: the main cache grows while the game runs (compiles on the GPU thread, the warm-up's
+    // builds): a worker that did not see the new pipelines compiles shaders the driver already
+    // had. Everything up to the last merge it was seeded with is counted here.
+    // A merge copies the whole main cache on the GPU command thread, so the re-seed is opt-in
+    // (TLG_RESEED_WORKER_CACHES=1); by default the workers are seeded once, at the first draw.
+    static const bool reseed = [] {
+        const char* v = std::getenv("TLG_RESEED_WORKER_CACHES");
+        const bool on = v && v[0] == '1';
+        if (on) {
+            std::printf("GPU: worker pipeline caches re-seeded after bursts "
+                        "(TLG_RESEED_WORKER_CACHES=1)\n");
+        }
+        return on;
+    }();
+    const u64 built = num_new_pipelines + warmup_pipelines_loaded;
+    if (worker_caches_seeded && (!reseed || built == worker_seed_marker)) {
+        return;
+    }
+    // Merging into a cache compiler threads are creating with is not a documented-safe call:
+    // re-seed once they are idle, which is when a burst of new pipelines has just ended.
+    if (worker_caches_seeded && compiler->Depth() != 0) {
         return;
     }
     for (const auto& cache : worker_pipeline_caches) {
@@ -978,6 +1001,7 @@ void PipelineCache::SeedWorkerCaches() {
         ASSERT_MSG(result == vk::Result::eSuccess, "Failed to seed compiler pipeline cache");
     }
     worker_caches_seeded = true;
+    worker_seed_marker = built;
 }
 
 void PipelineCache::ReportCompilerStats() {
@@ -1247,7 +1271,12 @@ const GraphicsPipeline* PipelineCache::GetGraphicsPipeline(const DrawIndirectPar
     if (Precompile::CaptureEnabled() && !graphics_pipelines.contains(sel.graphics_key)) {
         Precompile::CaptureGraphics(sel);
     }
-    if (AsyncCompilation() && !sel.regs->stage_enable.hs_en && !EmulatorSettings.IsShaderCollect()) {
+    // tlg: TLG_GFX_DEFERRED_BIND: the pipeline is built on a compiler thread when the driver's
+    // cache misses it, so this draw waits for it at the bind rather than being skipped: the
+    // asynchronous path above, which skips it, is left for the case where that is not possible.
+    const bool deferred_bind = GraphicsDeferredBindEnabled(instance, scheduler);
+    if (AsyncCompilation() && !sel.regs->stage_enable.hs_en && !EmulatorSettings.IsShaderCollect() &&
+        !deferred_bind) {
         const auto found = graphics_pipelines.find(sel.graphics_key);
         if (found != graphics_pipelines.end()) {
             return found->second.get();
@@ -1338,9 +1367,14 @@ compile_now:
         CompileTimer timer;
 
         GraphicsPipeline::SerializationSupport sdata{};
+        // tlg: TLG_GFX_DEFERRED_BIND builds the pipeline on the compiler threads when the driver's
+        // cache misses it; the layouts and the create-info stay valid for the build.
+        const GraphicsBuilder builder{compiler.get(), worker_pipeline_caches};
+        const bool async = compiler && !EmulatorSettings.IsShaderCollect();
         it.value() = std::make_unique<GraphicsPipeline>(
             instance, scheduler, desc_heap, profile, sel.graphics_key, *pipeline_cache, sel.infos,
-            sel.runtime_infos, sel.fetch_shader, sel.modules, sdata, false);
+            sel.runtime_infos, sel.fetch_shader, sel.modules, sdata, false,
+            async ? &builder : nullptr);
         // tlg: which compile a stutter belongs to (TLG_GPU_LOG=info/debug): pipeline hash, the
         // stage programs it was built from and the time.
         LOG_INFO(Render_Vulkan, "tlg: compiled graphics pipeline {:#x} ({}) in {:.1f} ms",
@@ -1917,7 +1951,9 @@ PipelineCache::Result PipelineCache::GetProgram(PipelineSelection& sel, HwStage 
     };
 
     auto it_pgm = program_cache.find(params.hash); // this thread is the only writer
-    if (it_pgm == program_cache.end() && lazy_programs && LoadProgramFromCache(params.hash)) {
+    // tlg: a program the cache has read its .spv/.meta instead of translating the guest code
+    // again, on every startup path (LoadProgramFromCache was gated on the precompiled one).
+    if (it_pgm == program_cache.end() && LoadProgramFromCache(params.hash)) {
         it_pgm = program_cache.find(params.hash);
     }
     const bool compile_async = AsyncCompilation() && hw_stage != HwStage::Compute &&

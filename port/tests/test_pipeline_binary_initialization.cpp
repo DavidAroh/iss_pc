@@ -81,8 +81,13 @@ void TestFallbacks() {
     assert(!Vulkan::InitializePipelineBinaryCache(device, true, key));
     assert(key_queries == 3 && key.keySize == 0);
 
+    // Unset means off: the driver cache path crashed NVIDIA 595 (opt in with TLG_PIPELINE_BINARIES=1).
     SetCache("");
     key_size = VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR;
+    assert(!Vulkan::InitializePipelineBinaryCache(device, true, key));
+    assert(key_queries == 3 && key.keySize == 0);
+
+    SetCache("1");
     assert(Vulkan::InitializePipelineBinaryCache(device, true, key));
     assert(key_queries == 4 && key.keySize == key_size && key.key[0] == 7);
     dispatch = original;
