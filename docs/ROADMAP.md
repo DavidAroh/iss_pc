@@ -49,11 +49,11 @@ de luzes), confirmado no Windows e no Linux.
 | 7 | GPU de 4 GB de VRAM | a memória de textura estoura (#72, #75); a investigar; por enquanto baixe a resolução. "Precisão da GPU: Rápido" escurece a imagem |
 | 8 | Quadro / Maxwell | pode estar abaixo do mínimo (#70); a investigar |
 | 9 | Texturas BC 1D | promoção para 2D automática nos drivers que recusam BC 1D, menos a NVIDIA; `ISS_BLOCK1D=0/1` decide. Na NVIDIA fica desligada porque estraga o HUD |
-| 10 | Atualizador automático | a tela Atualizações só verifica a última release e abre a página; baixar e instalar sozinho ainda não existe |
+| 10 | Atualizador automático | feito no launcher Qt (só pacote): "Baixar e instalar" pergunta antes de baixar, de instalar e de reiniciar, só em HTTPS, confere o tamanho e o SHA-256 (`SHA256SUMS`, publicado pelo CI) e instala numa pasta nova ao lado; a pasta antiga fica para voltar. Falta testar numa release real (Linux/Windows); o launcher Tk não tem atualizador |
 | 11 | Mouse | validar com mais jogadores (câmera, botões, modo touchpad) |
 | 12 | Windows | validar em mais PCs e placas (hoje o teste é por relatos de jogadores) |
-| 13 | `param.sfo` 1.07 na visão do jogo | a visão usa o 1.00 |
-| 14 | Idiomas | turco e russo dependem de o dump ter o idioma; ler do `param.sfo`/dados quais idiomas existem |
+| 13 | `param.sfo` 1.07 na visão do jogo | o `sce_sys` do update não traz o `param.sfo`, e a visão ficava com o 1.00 (sem ele os mods do 1.07 não aparecem). O `make_game_view.py` agora liga o de maior `APP_VER` (o do update, um `patch-meta/param.sfo` ou o passado como 4º argumento) e o launcher avisa quando o `param.sfo` não é o 1.07; falta conferir com um dump real |
+| 14 | Idiomas | os launchers só oferecem os idiomas que o `sce_sys/playgo-chunk.dat` do dump marca (máscara de idioma dos chunks do PlayGo; o `param.sfo` não diz isso) e o "Automático" cai no inglês quando falta o idioma do sistema; sem o arquivo (dump por FTP) ou sem chunks de idioma, ficam os 6. Falta conferir num dump real quais idiomas o CUSA00223 marca |
 | 15 | Prefixo `ISS_`/`TLG_` | o jogador usa `ISS_*` e o núcleo ainda lê `TLG_*` por dentro; quando todos os ports usarem o ps4_core, o prefixo comum vira `PSCORE_` |
 
 ---
@@ -76,6 +76,9 @@ on-disk pipeline cache (BP08 is experimental and off); (3) real occlusion throug
 (4) flickering fog/water/fire and a fine dark grid (a candidate fix, to be confirmed in game: on GPUs with a default
 subgroup size of 32 that support 64, compute shaders ran 64 lanes with the 32-lane wave64 lowering and are now lowered
 for 64; the shader cache is rebuilt once after updating, and the log shows `GPU: host subgroup size`); (5) the missing blue drone-drain glow; (6) the RX 580/Polaris crash
-on Windows; (7) GPUs with 4 GB of VRAM; (8) Quadro/Maxwell; (9) BC 1D textures; (10) an automatic updater (the Updates
-screen only checks); (11) validating the mouse; (12) validating Windows on more PCs; (13) the 1.07 `param.sfo` in the
-game view; (14) game languages from the game data; (15) the `ISS_`/`TLG_`/`PSCORE_` prefix.
+on Windows; (7) GPUs with 4 GB of VRAM; (8) Quadro/Maxwell; (9) BC 1D textures; (10) an automatic updater (done in the Qt
+launcher for packaged builds: download, SHA-256 check against the release's SHA256SUMS, install into a new
+sibling folder; to be tried on a real release); (11) validating the mouse; (12) validating Windows on more PCs; (13) the 1.07 `param.sfo` in the
+game view (make_game_view.py now links the newest one and the launcher warns about a 1.00 one; to be checked
+with a real dump); (14) game languages from the game data (read from the PlayGo chunks of `playgo-chunk.dat`, all 6
+when it cannot tell; to be checked with a real dump); (15) the `ISS_`/`TLG_`/`PSCORE_` prefix.
