@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include "video_core/renderer_vulkan/vk_instance.h"
+#include "vulkan_test_driver.h"
 
 // Keep the dispatcher's ABI consistent with the renderer library.
 #undef NDEBUG
@@ -91,13 +92,16 @@ void TestFallbacks() {
 int main(int argc, char**) {
     const bool enabled = argc > 1;
     SetCache(enabled ? "1" : "0");
-    Vulkan::Instance instance{s32{-1}, false};
-    if (!enabled && instance.GetPipelineBinaryGlobalKey().keySize != 0) {
-        std::fputs("FAIL: disabled binary cache initialized a global key\n", stderr);
-        return 1;
+    // The fallbacks use a fake device; only the real one needs a driver.
+    if (!SkipWithoutVulkanDriver()) {
+        Vulkan::Instance instance{s32{-1}, false};
+        if (!enabled && instance.GetPipelineBinaryGlobalKey().keySize != 0) {
+            std::fputs("FAIL: disabled binary cache initialized a global key\n", stderr);
+            return 1;
+        }
+        std::printf("Real device: binary cache %s, global key size %u\n",
+                    enabled ? "requested" : "disabled", instance.GetPipelineBinaryGlobalKey().keySize);
     }
-    std::printf("Real device: binary cache %s, global key size %u\n",
-                enabled ? "requested" : "disabled", instance.GetPipelineBinaryGlobalKey().keySize);
     TestFallbacks();
     std::puts("pipeline-binary-initialization-test: passed");
 }
