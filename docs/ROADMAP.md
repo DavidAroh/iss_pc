@@ -40,8 +40,8 @@ de luzes), confirmado no Windows e no Linux.
 
 | # | Item | Detalhe |
 |---|---|---|
-| 1 | Desempenho | a thread do jogo espera leituras da GPU (escritas de `memcpy` em páginas modificadas pela GPU); correção: rastrear a memória em pedaços menores que a página. O primeiro passo existe (`ISS_WRITE_MERGE`, ligado pelo launcher, e as leituras adiadas), e o FPS segue instável |
-| 2 | Engasgo de shader | 64–118 compilações por janela de 5 s em cenas novas; precisa do cache de pipelines em disco. O BP08 (blob do cache do driver) é experimental e desligado; `ISS_PIPELINE_BINARIES=1` ainda derruba o jogo no driver NVIDIA 595 |
+| 1 | Desempenho | a thread do jogo espera leituras da GPU (escritas de `memcpy` em páginas modificadas pela GPU); correção: rastrear a memória em pedaços menores que a página. O primeiro passo existe (`ISS_WRITE_MERGE`, ligado pelo launcher, e as leituras adiadas), e o FPS segue instável. Em 17/10: atalhos sem mudança de imagem (bits da GPU, `memset` mesclado, samplers do conjunto de texturas, escritas de descritores, apresentação) e, para teste A/B, `ISS_READBACK_LOCAL_JOIN=1`, `ISS_WRITE_MERGE_MIN` e `ISS_PHYS_CORES=1` ([parallel_gpu.md](../port/docs/parallel_gpu.md)) |
+| 2 | Engasgo de shader | 64–118 compilações por janela de 5 s em cenas novas; precisa do cache de pipelines em disco. O BP08 (blob do cache do driver) é experimental e desligado; `ISS_PIPELINE_BINARIES=1` ainda derruba o jogo no driver NVIDIA 595 (agora desligado sem a variável). Em teste: `ISS_GFX_DEFERRED_BIND=1` compila o pipeline numa thread do compilador em vez da thread de comandos da GPU, sem pular desenhos |
 | 3 | Oclusão real | o modo 3 é uma aproximação (contagem zero); falta medir a oclusão de verdade pelo Vulkan (occlusion queries). Risco atual: brilho de luzes mais fraco em algumas cenas (modo 0 volta ao antigo) |
 | 4 | Névoa, água e fogo piscando; grade fina de linhas escuras | suspeitas: ballots wave64 em fluxo divergente, texturas BC 1D; os faróis e o brilho de luzes que piscavam já foram corrigidos (oclusão, modo 3). Candidata, a confirmar no jogo: em GPUs com subgrupo padrão de 32 e suporte a 64, os compute shaders rodavam com 64 lanes mas traduzidos para 32; agora são traduzidos para 64 (o cache de shaders é refeito uma vez depois de atualizar; o log mostra `GPU: host subgroup size`) |
 | 5 | Brilho azul do dreno de drones | não aparece; ballot wave64, stencil ou readback |
@@ -71,8 +71,8 @@ Done since the last roadmap: the Qt launcher as the default (Tk as a fallback), 
 12 experimental fixes (BP01–BP12), the occlusion counter fix (headlights and light glare; confirmed on Windows and
 Linux), mouse camera and touchpad mode, controller guides, the Support and Updates screens, and the F16C emulation.
 
-Open, by priority: (1) performance — the game thread waits on GPU readbacks; (2) shader-compile stutter — needs an
-on-disk pipeline cache (BP08 is experimental and off); (3) real occlusion through Vulkan (mode 3 is an approximation);
+Open, by priority: (1) performance — the game thread waits on GPU readbacks (2026-10-17: image-neutral fast paths on by default; `ISS_READBACK_LOCAL_JOIN`, `ISS_WRITE_MERGE_MIN`, `ISS_PHYS_CORES` to A/B); (2) shader-compile stutter — `ISS_GFX_DEFERRED_BIND=1` builds missed pipelines on a compiler
+thread instead of the GPU command thread (to A/B); (3) real occlusion through Vulkan (mode 3 is an approximation);
 (4) flickering fog/water/fire and a fine dark grid (a candidate fix, to be confirmed in game: on GPUs with a default
 subgroup size of 32 that support 64, compute shaders ran 64 lanes with the 32-lane wave64 lowering and are now lowered
 for 64; the shader cache is rebuilt once after updating, and the log shows `GPU: host subgroup size`); (5) the missing blue drone-drain glow; (6) the RX 580/Polaris crash

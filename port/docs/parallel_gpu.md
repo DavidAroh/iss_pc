@@ -704,3 +704,46 @@ Shaders:
   pipeline-binary failures log the `VkResult` and the call.
 - The shader cache key now also covers `tlg_block1d.h`, `tlg_bc_tiny.h` and
   `vk_graphics_pipeline.cpp`, so every player's shader cache is rebuilt once after this update.
+
+## Frame time and stutter pass (2026-10-17)
+
+From a code read, not yet measured in game; players report 30-40 FPS with drops on RTX 2060-class
+PCs. Default-on changes don't change the image; the risky ones are opt-in for A/B.
+
+On by default:
+- `IsRegionGpuModified` has the same atomic early-out as the CPU bits (`gpu_any` in
+  `region_manager.h`): every guest `memcpy`/`memset` that the write merge checks and every read
+  fault used to scan the page bits even when the region held no GPU-written page.
+- The write merge fills a `memset` with one walk of the backing mappings
+  (`runtime_memory_fill_backing`, `MemoryManager::FillBacking`) instead of 4 KiB chunks, each
+  with its own lock, lookup and texture-cache probe.
+- Texture-set hits reuse the samplers the set resolved (toggle bit 31, `SamplerSetMemo`): one
+  lock to mark them used instead of a hash, the sampler map lookup and a lock per sampler. The
+  collector's sampler generation drops a memo whose samplers it destroyed.
+- The per-draw descriptor writes keep their storage between draws instead of clearing and
+  value-initialising ~25 entries per draw (`TLG_SET_WRITE_POOL=0` restores it).
+- Present: no full clear of the swapchain image when the frame covers it, and a nearest-filter
+  blit at 1:1 (`TLG_PRESENT_SKIP_CLEAR=0` restores both).
+- Cached SPIR-V is loaded on every start-up path (the on-demand one re-translated every shader
+  each session).
+- `TLG_PIPELINE_BINARIES` is off unless set to 1 (it crashed the NVIDIA 595 driver; the
+  launcher already set it off).
+- Bug fix: the swapchain's `waitIdle` and rebuilds (resize, VSync, HDR) take the queue lock
+  (`Scheduler::LockQueue`); they used the queue while other threads submitted.
+- Port defaults match the launcher's: upscaler off, object motion off (direct runs paid ~10%).
+
+Opt-in (A/B, then candidates for the default):
+- `TLG_GFX_DEFERRED_BIND=1`: a graphics pipeline the driver's cache misses is built on a
+  compiler thread and the draw recording thread waits for it at bind, like compute pipelines,
+  instead of the GPU command thread compiling it inline. No draw is skipped. The shader stutter
+  candidate with the largest expected effect.
+- `TLG_READBACK_LOCAL_JOIN=1` (with the deferred readbacks): a faulting guest thread whose
+  window is covered by a pending readback finishes it itself instead of a round trip through
+  the GPU command thread (counted as `local_joined` in the readback stats).
+- `TLG_WRITE_MERGE_MIN=16..4096` (default 64): the smallest guest copy the write merge takes.
+- `TLG_PHYS_CORES=1`: helper thread counts and spin budgets from physical cores instead of
+  hardware threads (6-core/12-thread CPUs spin less and run 3 draw preparation workers).
+- `TLG_WARMUP_BUILD_CACHED=1`: with a precompiled cache, the warm-up also builds its pipelines
+  in the background (covers a driver cache lost to an update, costs CPU time while playing).
+- `TLG_RESEED_WORKER_CACHES=1`: the compiler threads' pipeline caches are merged with the main
+  cache again after each burst (the merge runs on the GPU command thread).
