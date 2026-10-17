@@ -80,7 +80,7 @@ Por **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) 
 | Launcher | ✅ Qt Quick (padrão) com o Tk de reserva; português e inglês |
 | Saves e dados | ✅ Pasta configurável, backup, exportar/importar |
 | Mouse (câmera e touchpad) | 🧪 Implementado, ainda pouco testado em jogo |
-| Correções experimentais (BP01–BP12) | 🧪 As de padrão ligado vêm no perfil Recomendado; BP06–BP09 (desligadas) são experimentais |
+| Correções experimentais (BP01–BP12) | 🧪 As de padrão ligado vêm no perfil Recomendado; BP07 e BP09 (desligadas) são experimentais; BP06 e BP08 ligadas por padrão |
 | Linux | ✅ Testado (Nobara/Fedora 44) |
 | Windows | 🧪 Testado por jogadores (a correção de luzes foi confirmada); crash conhecido em RX 580/Polaris, veja [Problemas conhecidos](#problemas-conhecidos) |
 
@@ -168,9 +168,9 @@ A tela **Correções** do launcher (e o botão **Correções experimentais…** 
 | BP03 | mantém o EXEC depois de um desvio divergente vazio | shadPS4 c34ca21f | ligado | reinicia, recompila shaders |
 | BP04 | recíproco/raiz/log sem clamp, como o hardware | shadPS4 #5346 | ligado | reinicia, recompila shaders |
 | BP05 | saturate trata NaN como a GPU (vira 0) | shadPS4 #5257 | ligado | reinicia, recompila shaders |
-| BP06 | reconvergência máxima nos shaders de compute | port nativo de Shadow of the Colossus | **desligado** (experimental) | reinicia, recompila shaders |
+| BP06 | reconvergência máxima nos shaders de compute | port nativo de Shadow of the Colossus | **ligado** | reinicia, recompila shaders |
 | BP07 | compilação assíncrona sem pular draws pequenos ou indiretos | bbport (bloodborne_pc) | **desligado** (experimental) | no jogo |
-| BP08 | guarda o cache de pipelines do driver entre partidas | Mrsuss, 0xCydral (bloodborne_pc) | **desligado** (experimental) | reinicia |
+| BP08 | guarda o cache de pipelines do driver entre partidas | Mrsuss, 0xCydral (bloodborne_pc) | **ligado** (desde 16/10) | reinicia |
 | BP09 | toda imagem 1D vira 2D de altura 1 | CTR | **desligado** (experimental) | reinicia, recompila shaders |
 | BP10 | barreiras para buffers de vértice, índice e indiretos | shadPS4 #5262 | ligado | no jogo |
 | BP11 | `firstInstance` contado uma vez nos draws indiretos | shadPS4 #5348 | ligado | reinicia, recompila shaders |
@@ -179,7 +179,7 @@ A tela **Correções** do launcher (e o botão **Correções experimentais…** 
 - **Como a release anterior:** `TLG_BACKPORTS=0` (ou o botão do launcher) desliga todas as BP que vêm ligadas, para comparar com a versão sem elas; um `TLG_BPnn` individual ainda vence. Na primeira abertura depois de atualizar, uma mensagem única explica isso. Se uma cena piorar, teste primeiro assim e depois ligue uma a uma.
 - **Voltar ao recomendado** apaga todas as suas escolhas. Só o que difere do padrão é gravado.
 - **Chaves de diagnóstico (A/B):** `ISS_WQM`, `ISS_LDS_SMALL`, `ISS_LDS_MULTI`, `ISS_LDS_READLANE`, `ISS_LANE_DIVERGENCE`, `ISS_RFL_ALL`, `ISS_BLOCK1D`, `ISS_BC_TINY`, `ISS_NO_MSAA`, `ISS_BACKGROUND_WARMUP`, `ISS_PIPELINE_BINARIES` (ainda derruba o jogo no driver NVIDIA 595) e o seletor de oclusão (`ISS_OCCLUSION_MODE`); `0` desliga, `1` liga. Servem para descobrir qual mudança causa um problema.
-- O BP08 (cache de pipelines do driver em disco) é experimental e vem desligado; o cache de pipelines em disco "de verdade" contra os engasgos ainda está no [roadmap](docs/ROADMAP.md).
+- O BP08 (cache de pipelines do driver em disco) vem ligado desde 16/10: a criação de pipelines fica rápida o bastante para nenhum desenho ser pulado (os flashes cinza de um quadro). O arquivo é salvo só quando há pipelines novos e não passa de 1 GB (`ISS_DRIVER_CACHE_MAX_MB`; apagar o arquivo recomeça). O resto do engasgo de shader está no [roadmap](docs/ROADMAP.md).
 - Tabela completa, com as chaves do `tlg.ini` e as opções do menu Insert: [`docs/EXPERIMENTAL_FIXES.md`](docs/EXPERIMENTAL_FIXES.md).
 
 ## Luzes e oclusão
@@ -443,7 +443,7 @@ The screenshots are at the top of this page.
 | Launcher | ✅ Qt Quick (default) with the Tk one as a fallback; Portuguese and English |
 | Saves and data | ✅ Configurable folder, backup, export/import |
 | Mouse (camera and touchpad) | 🧪 Implemented, not yet tested much in game |
-| Experimental fixes (BP01–BP12) | 🧪 The ones on by default come in the Recommended profile; BP06–BP09 (off) are experimental |
+| Experimental fixes (BP01–BP12) | 🧪 The ones on by default come in the Recommended profile; BP07 and BP09 (off) are experimental; BP06 and BP08 are on by default |
 | Linux | ✅ Tested (Nobara/Fedora 44) |
 | Windows | 🧪 Tested by players (the lights fix was confirmed); known crash on RX 580/Polaris, see [Known problems](#known-problems) |
 
@@ -531,9 +531,9 @@ The launcher's **Fixes** screen (and the **Experimental fixes…** button of the
 | BP03 | keeps EXEC after an empty divergent branch | shadPS4 c34ca21f | on | restarts, recompiles shaders |
 | BP04 | reciprocal/root/log without clamp, like the hardware | shadPS4 #5346 | on | restarts, recompiles shaders |
 | BP05 | saturate treats NaN like the GPU (becomes 0) | shadPS4 #5257 | on | restarts, recompiles shaders |
-| BP06 | maximal reconvergence in compute shaders | native Shadow of the Colossus port | **off** (experimental) | restarts, recompiles shaders |
+| BP06 | maximal reconvergence in compute shaders | native Shadow of the Colossus port | **on** | restarts, recompiles shaders |
 | BP07 | async compile never skips small or indirect draws | bbport (bloodborne_pc) | **off** (experimental) | in game |
-| BP08 | keeps the driver pipeline cache between sessions | Mrsuss, 0xCydral (bloodborne_pc) | **off** (experimental) | restarts |
+| BP08 | keeps the driver pipeline cache between sessions | Mrsuss, 0xCydral (bloodborne_pc) | **on** (since 2026-10-16) | restarts |
 | BP09 | every 1D image becomes 2D with height 1 | CTR | **off** (experimental) | restarts, recompiles shaders |
 | BP10 | barriers for vertex, index and indirect buffers | shadPS4 #5262 | on | in game |
 | BP11 | `firstInstance` counted once in indirect draws | shadPS4 #5348 | on | restarts, recompiles shaders |
@@ -542,7 +542,7 @@ The launcher's **Fixes** screen (and the **Experimental fixes…** button of the
 - **Like the previous release:** `TLG_BACKPORTS=0` (or the launcher button) turns off every BP that is on by default, to compare with the version without them; an individual `TLG_BPnn` still wins. On the first start after updating, a one-time message explains this. If a scene gets worse, test this way first, then turn them back on one by one.
 - **Back to recommended** clears all your choices. Only what differs from the default is written.
 - **Diagnostic (A/B) switches:** `ISS_WQM`, `ISS_LDS_SMALL`, `ISS_LDS_MULTI`, `ISS_LDS_READLANE`, `ISS_LANE_DIVERGENCE`, `ISS_RFL_ALL`, `ISS_BLOCK1D`, `ISS_BC_TINY`, `ISS_NO_MSAA`, `ISS_BACKGROUND_WARMUP`, `ISS_PIPELINE_BINARIES` (still crashes the game on the NVIDIA 595 driver) and the occlusion selector (`ISS_OCCLUSION_MODE`); `0` turns off, `1` turns on. They exist to find which change causes a problem.
-- BP08 (the on-disk driver pipeline cache) is experimental and off; a "real" on-disk pipeline cache against stutter is still on the [roadmap](docs/ROADMAP.md).
+- BP08 (the on-disk driver pipeline cache) is on since 2026-10-16: pipeline creation gets fast enough that no draw is skipped (the grey one-frame flashes). The file is saved only when there are new pipelines and never grows past 1 GB (`ISS_DRIVER_CACHE_MAX_MB`; deleting it starts over). The rest of the shader stutter is on the [roadmap](docs/ROADMAP.md).
 - Full table, with the `tlg.ini` keys and the Insert menu options: [`docs/EXPERIMENTAL_FIXES.md`](docs/EXPERIMENTAL_FIXES.md).
 
 ## Lights and occlusion

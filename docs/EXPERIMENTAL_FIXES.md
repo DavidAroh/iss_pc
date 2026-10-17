@@ -3,7 +3,7 @@
 No launcher novo (Qt) é a tela **Correções**; no launcher Tk de reserva (**inFAMOUS Second Son (classic)**), o botão **Correções experimentais…** abre uma janela com três abas. Os dois leem e gravam as mesmas chaves. Tudo é salvo no `tlg.ini` (pasta `user/` do port) e vale na **próxima partida**; os itens marcados "no jogo" também podem ser mudados durante a partida, no menu Insert. Se você não mexer em nada, valem os padrões do port. Só o que difere do padrão é gravado: voltar ao padrão apaga a chave.
 
 - **Menu do jogo (Insert):** as opções do menu do jogo que não estão no resto do launcher (imagem, desempenho, controle e overlay). Modo de exibição, VSync e o botão do overlay de FPS continuam no quadro Vídeo.
-- **Correções experimentais (BPnn):** as 12 correções portadas de outros ports de PS4 e do shadPS4 (`port/gpu/shadps4/common/backports.h`). As de padrão desligado (BP07 a BP09 e BP12) e a BP06 (ligada, mas experimental) são experimentais. Em cada uma, o launcher mostra a origem; as que mudam shader avisam que a primeira partida depois de mudar recompila os shaders (pode piscar ou ficar verde por um tempo).
+- **Correções experimentais (BPnn):** as 12 correções portadas de outros ports de PS4 e do shadPS4 (`port/gpu/shadps4/common/backports.h`). As de padrão desligado (BP07, BP09 e BP12) e a BP06 (ligada, mas experimental) são experimentais; a BP08 vem ligada desde 16/10. Em cada uma, o launcher mostra a origem; as que mudam shader avisam que a primeira partida depois de mudar recompila os shaders (pode piscar ou ficar verde por um tempo).
 - **Chaves de diagnóstico / A-B:** chaves que só existiam como variável de ambiente, para descobrir qual mudança causa um problema. Inclui o **modo de oclusão** (`ISS_OCCLUSION_MODE`, padrão 3; veja abaixo), que também tem um seletor na tela inicial. `TLG_PIPELINE_BINARIES` ainda derruba o jogo no driver NVIDIA 595.
 
 Botões: **Voltar ao recomendado** (apaga todas as escolhas; o perfil Recomendado são os padrões da tabela, com o selo "recomendado" nas linhas que o compõem; a janela mostra "Perfil: Recomendado" ou "Perfil: personalizado (N mudanças)") e **Como a release anterior** (grava `bp01=0` ... para todo BPnn que vem ligado; é o mesmo que iniciar com `TLG_BACKPORTS=0`, mas as caixas mostram o estado e dá para religar uma a uma).
@@ -21,7 +21,7 @@ Variáveis: o launcher passa `ISS_<nome>=0/1` ao jogo (o `tlg-probe` copia para 
 | BP05 Saturate mantém NaN | `bp05` | ISS_/TLG_BP05 | ligado | reinicia o jogo, recompila shaders | shadPS4 #5257 |
 | BP06 Reconvergência máxima | `bp06` | ISS_/TLG_BP06 | ligado | reinicia o jogo, recompila shaders, experimental | Shadow of the Colossus port 8d84cf7 |
 | BP07 Compilação assíncrona sem pular draws | `bp07` | ISS_/TLG_BP07 | desligado | no jogo (Insert), experimental | bbport 10baf9d |
-| BP08 Cache de pipelines do driver | `bp08` | ISS_/TLG_BP08 | desligado | reinicia o jogo, experimental | Mrsuss b972798, 0xCydral bdb9769 |
+| BP08 Cache de pipelines do driver | `bp08` | ISS_/TLG_BP08 | ligado (desde 16/10) | reinicia o jogo | Mrsuss b972798, 0xCydral bdb9769 |
 | BP09 Toda imagem 1D como 2D | `bp09` | ISS_/TLG_BP09 | desligado | reinicia o jogo, recompila shaders, experimental | CTR GetLostIn d26bcb2 |
 | BP10 Barreiras de buffers de vértice/índice | `bp10` | ISS_/TLG_BP10 | ligado | no jogo (Insert) | shadPS4 #5262 |
 | BP11 First instance contada uma vez | `bp11` | ISS_/TLG_BP11 | ligado | reinicia o jogo, recompila shaders | shadPS4 #5348 |
@@ -41,7 +41,7 @@ Variáveis: o launcher passa `ISS_<nome>=0/1` ao jogo (o `tlg-probe` copia para 
 |  Texturas BC minúsculas na CPU | `bc_tiny` | ISS_/TLG_BC_TINY | automático | reinicia o jogo, recompila shaders |  |
 |  Desligar multisampling | `no_msaa` | ISS_/TLG_NO_MSAA | automático | reinicia o jogo, recompila shaders |  |
 |  Consulta de oclusão (0 a 3) | `occlusion_mode` | ISS_/TLG_OCCLUSION_MODE | 3 | reinicia o jogo | diagnóstico (`liverpool.cpp`, `ZPASS_DONE`) |
-|  Compilação assíncrona de shaders | `async_shaders` | (lido do tlg.ini) | ligado | no jogo (Insert) |  |
+|  Compilação assíncrona de shaders | `async_shaders` | (lido do tlg.ini) | desligado (desde 16/10: nenhum desenho pulado) | no jogo (Insert) |  |
 |  Leituras da GPU adiadas | `deferred_readback` | (lido do tlg.ini) | ligado | reinicia o jogo |  |
 |  Leituras da GPU com um quadro de atraso | `stale_readback` | (lido do tlg.ini) | desligado | reinicia o jogo |  |
 |  Carregar pipelines durante o jogo | `background_warmup` | ISS_/TLG_BACKGROUND_WARMUP | ligado | reinicia o jogo |  |
@@ -92,7 +92,7 @@ BP01–BP05, BP10–BP12: [shadPS4](https://github.com/shadps4-emu/shadPS4) (nú
 In the new (Qt) launcher it is the **Fixes** screen; in the fallback Tk launcher (**inFAMOUS Second Son (classic)**), the **Experimental fixes…** button opens a window with three tabs. Both read and write the same keys. Everything is saved in `tlg.ini` (the port's `user/` folder) and applies on the **next start**; items tagged "in game" can also be changed while playing, in the Insert menu. If you touch nothing, the port's defaults hold. Only what differs from the default is written: going back to the default removes the key.
 
 - **Game menu (Insert):** the in-game menu options the rest of the launcher does not have (image, performance, controls, overlay). Display mode, VSync and the FPS overlay switch stay in the Video box.
-- **Experimental fixes (BPnn):** the 12 fixes ported from other PS4 ports and from shadPS4 (`port/gpu/shadps4/common/backports.h`). Those off by default (BP07 to BP09 and BP12) and BP06 (on, but experimental) are experimental. Each shows its origin; the ones that change shaders warn that the first game after changing recompiles the shaders (it may flicker or look green for a while).
+- **Experimental fixes (BPnn):** the 12 fixes ported from other PS4 ports and from shadPS4 (`port/gpu/shadps4/common/backports.h`). Those off by default (BP07, BP09 and BP12) and BP06 (on, but experimental) are experimental; BP08 is on since 2026-10-16. Each shows its origin; the ones that change shaders warn that the first game after changing recompiles the shaders (it may flicker or look green for a while).
 - **Diagnostic / A-B switches:** switches that were environment variables only, to find which change causes a problem. It includes the **occlusion mode** (`ISS_OCCLUSION_MODE`, default 3; see below), which also has a selector on the home screen. `TLG_PIPELINE_BINARIES` still crashes the game on the NVIDIA 595 driver.
 
 Buttons: **Back to recommended** (clears every choice; the Recommended profile is the table defaults, rows in it carry a "recommended" badge; the window shows "Profile: Recommended" or "Profile: custom (N changes)") and **Like the previous release** (writes `bp01=0` ... for every BPnn that is on by default; same as starting with `TLG_BACKPORTS=0`, but the boxes show the state and you can turn single ones back on).
@@ -110,7 +110,7 @@ Variables: the launcher gives the game `ISS_<name>=0/1` (`tlg-probe` copies it t
 | BP05 Saturate keeps NaN | `bp05` | ISS_/TLG_BP05 | on | restarts the game, recompiles shaders | shadPS4 #5257 |
 | BP06 Maximal reconvergence | `bp06` | ISS_/TLG_BP06 | on | restarts the game, recompiles shaders, experimental | Shadow of the Colossus port 8d84cf7 |
 | BP07 Async compile never skips draws | `bp07` | ISS_/TLG_BP07 | off | in game (Insert), experimental | bbport 10baf9d |
-| BP08 Driver pipeline cache | `bp08` | ISS_/TLG_BP08 | off | restarts the game, experimental | Mrsuss b972798, 0xCydral bdb9769 |
+| BP08 Driver pipeline cache | `bp08` | ISS_/TLG_BP08 | on (since 2026-10-16) | restarts the game | Mrsuss b972798, 0xCydral bdb9769 |
 | BP09 Every 1D image as 2D | `bp09` | ISS_/TLG_BP09 | off | restarts the game, recompiles shaders, experimental | CTR GetLostIn d26bcb2 |
 | BP10 Vertex/index buffer barriers | `bp10` | ISS_/TLG_BP10 | on | in game (Insert) | shadPS4 #5262 |
 | BP11 First instance counted once | `bp11` | ISS_/TLG_BP11 | on | restarts the game, recompiles shaders | shadPS4 #5348 |
@@ -130,7 +130,7 @@ Variables: the launcher gives the game `ISS_<name>=0/1` (`tlg-probe` copies it t
 |  Tiny BC textures on the CPU | `bc_tiny` | ISS_/TLG_BC_TINY | automatic | restarts the game, recompiles shaders |  |
 |  Disable multisampling | `no_msaa` | ISS_/TLG_NO_MSAA | automatic | restarts the game, recompiles shaders |  |
 |  Occlusion query (0 to 3) | `occlusion_mode` | ISS_/TLG_OCCLUSION_MODE | 3 | restarts the game | diagnostic (`liverpool.cpp`, `ZPASS_DONE`) |
-|  Asynchronous shader compile | `async_shaders` | (read from tlg.ini) | on | in game (Insert) |  |
+|  Asynchronous shader compile | `async_shaders` | (read from tlg.ini) | off (since 2026-10-16: no skipped draws) | in game (Insert) |  |
 |  Deferred GPU readbacks | `deferred_readback` | (read from tlg.ini) | on | restarts the game |  |
 |  Stale readbacks | `stale_readback` | (read from tlg.ini) | off | restarts the game |  |
 |  Load pipelines while playing | `background_warmup` | ISS_/TLG_BACKGROUND_WARMUP | on | restarts the game |  |
