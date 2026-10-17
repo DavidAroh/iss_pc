@@ -601,8 +601,7 @@ class Backend(QObject):
 
     @Slot()
     def openModsFolder(self):
-        from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(tlg_run.mods_dir())))
+        tlg_run.open_external(tlg_run.mods_dir())
 
     @Property(str, notify=profileChanged)
     def profileText(self):
