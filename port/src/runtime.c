@@ -177,7 +177,15 @@ static ABI void *guest_memcpy(void *dst, const void *src, size_t size) {
     return memcpy(dst, src, size);
 }
 static ABI void *guest_memmove(void *dst, const void *src, size_t size) {
-    atomic_fetch_add_explicit(&memory_calls,1,memory_order_relaxed); return memmove(dst, src, size);
+    atomic_fetch_add_explicit(&memory_calls,1,memory_order_relaxed);
+    /* Same write merge as memcpy when the ranges cannot overlap; an overlapping move keeps
+       memmove's semantics (the merge path copies forward). */
+    if (size >= 64) {
+        uintptr_t to=(uintptr_t)dst, from=(uintptr_t)src;
+        if ((to <= from ? from - to : to - from) >= size && tlggpu_cpu_write(dst, src, -1, size))
+            return dst;
+    }
+    return memmove(dst, src, size);
 }
 static ABI int guest_memcmp(const void *a, const void *b, size_t size) {
     atomic_fetch_add_explicit(&memory_calls,1,memory_order_relaxed); return memcmp(a, b, size);

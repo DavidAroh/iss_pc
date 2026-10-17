@@ -175,6 +175,9 @@ struct ReadbackStats {
     std::atomic<u64> deferred{0}, joined{0}, applied{0}, stale{0}, deferred_ns{0}, deferred_bytes{0};
     /// Eager copies: pages copied, used by a fault, gone stale unread, skipped for backoff.
     std::atomic<u64> eager_copied{0}, eager_used{0}, eager_stale{0}, eager_skipped{0};
+    /// Waits for a readback copy tick (WaitReadbackTick): the scheduler's own waits do not
+    /// count them.
+    std::atomic<u64> guest_waits{0}, guest_wait_ns{0};
     std::atomic<s64> window_start{0};
 };
 ReadbackStats& Readbacks() {
@@ -216,9 +219,28 @@ void ReportReadbacks() {
                 static_cast<unsigned long long>(r.eager_used.exchange(0)),
                 static_cast<unsigned long long>(r.eager_stale.exchange(0)),
                 static_cast<unsigned long long>(r.eager_skipped.exchange(0)));
+    std::printf("  waits for a readback copy: %llu, %.1f ms\n",
+                static_cast<unsigned long long>(r.guest_waits.exchange(0)),
+                r.guest_wait_ns.exchange(0) / 1e6);
     std::fflush(stdout);
 }
 } // namespace
+
+// tlg: the waits for a readback copy tick (eager and deferred copies) go straight to the work
+// semaphore, so the scheduler's own tick_wait_ns misses them; they are counted here instead.
+// Scheduler::Wait also submits when the tick has not been (the copies are always submitted when
+// they are recorded, so this is the bounded fallback that keeps the guest from waiting forever).
+void BufferCache::WaitReadbackTick(u64 tick) {
+    const s64 started = ReadbackStatsEnabled() ? NowNs() : 0;
+    // tlg: the semaphore, not scheduler.Wait: this runs on guest threads (faults, write merge),
+    // which must never submit (the tick was flushed when the copy was recorded).
+    scheduler.GetWorkSemaphore()->Wait(tick);
+    if (started) {
+        auto& r = Readbacks();
+        r.guest_waits.fetch_add(1);
+        r.guest_wait_ns.fetch_add(NowNs() - started);
+    }
+}
 
 std::tuple<const Buffer*, VAddr, VAddr> BufferCache::GetReadbackWindow(VAddr device_addr,
                                                                        u64 size) {
@@ -977,7 +999,7 @@ bool BufferCache::TryEagerRead(VAddr addr, u64 size) {
         offset = it->second.offset;
         tick = it->second.tick;
     }
-    scheduler.GetWorkSemaphore()->Wait(tick);
+    WaitReadbackTick(tick);
     std::scoped_lock lock{eager_mutex};
     const auto it = eager_pages.find(page_addr);
     if (it == eager_pages.end() || !it->second.valid || it->second.tick != tick) {
@@ -1074,7 +1096,7 @@ std::shared_ptr<BufferCache::DeferredReadback> BufferCache::StartDeferredReadbac
 
 bool BufferCache::FinishDeferredReadback(DeferredReadback& readback, bool wait) {
     if (wait) {
-        scheduler.GetWorkSemaphore()->Wait(readback.tick);
+        WaitReadbackTick(readback.tick);
     }
     std::scoped_lock lock{readback.mutex};
     if (readback.applied.load(std::memory_order_acquire)) {

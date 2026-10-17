@@ -239,6 +239,9 @@ private:
         }
     };
     static bool DeferredReadbackEnabled();
+    /// tlg: waits for a readback copy tick with the readback wait counters (TLG_READBACK_STATS)
+    /// and the scheduler's submit-if-needed fallback; the scheduler's tick_wait_ns misses these.
+    void WaitReadbackTick(u64 tick);
     /// The arena and the window around a range that is read back with it.
     std::tuple<const Buffer*, VAddr, VAddr> GetReadbackWindow(VAddr device_addr, u64 size);
     /// Takes the GPU modified ranges of a range out of gpu_modified_ranges, adding copies of
