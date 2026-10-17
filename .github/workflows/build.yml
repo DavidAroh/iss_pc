@@ -238,12 +238,14 @@ jobs:
           if gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null | grep -qx false; then
             echo "tag=$tag" >> "$GITHUB_OUTPUT"; exit 0
           fi
+          # SHA256SUMS: the launcher's updater checks the downloaded package against it.
+          (cd dist && sha256sum infamous-linux-x86_64.tar.gz infamous-windows-x86_64.zip > SHA256SUMS)
           # Upload into a draft first, so a failed upload never leaves a half-published release.
           # Releases are kept forever as version history; nothing here deletes one.
           gh release create "$tag" dist/* --draft --target "$GITHUB_SHA" \
             --title "$tag ($(date -u +%Y-%m-%d) · ${short})" --notes-file notes.md
           n=$(gh release view "$tag" --json assets --jq '.assets | length')
-          [[ $n -ge 2 ]] || { echo "draft release has $n assets"; exit 1; }
+          [[ $n -ge 3 ]] || { echo "draft release has $n assets"; exit 1; }
           for try in 1 2 3; do
             gh release edit "$tag" --draft=false --latest && break
             sleep 10
@@ -265,7 +267,7 @@ jobs:
           short=${GITHUB_SHA::7}
           url="$GITHUB_SERVER_URL/$GH_REPO/releases/tag/$tag"
           downloads=$(gh release view "$tag" --json assets \
-            --jq '[.assets[] | "• [\(.name)](\(.url))"] | join("\n")')
+            --jq '[.assets[] | select(.name != "SHA256SUMS") | "• [\(.name)](\(.url))"] | join("\n")')
           # One card per release: only the "## Novidades" section of the release notes (the full
           # notes are one click away). Without that section, the commit message stands in.
           news=$(gh release view "$tag" --json body --jq .body | tr -d '\r' |
