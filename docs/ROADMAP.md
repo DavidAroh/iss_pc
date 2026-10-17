@@ -43,7 +43,7 @@ de luzes), confirmado no Windows e no Linux.
 | 1 | Desempenho | a thread do jogo espera leituras da GPU (escritas de `memcpy` em páginas modificadas pela GPU); correção: rastrear a memória em pedaços menores que a página. O primeiro passo existe (`ISS_WRITE_MERGE`, ligado pelo launcher, e as leituras adiadas), e o FPS segue instável |
 | 2 | Engasgo de shader | 64–118 compilações por janela de 5 s em cenas novas; precisa do cache de pipelines em disco. O BP08 (blob do cache do driver) é experimental e desligado; `ISS_PIPELINE_BINARIES=1` ainda derruba o jogo no driver NVIDIA 595 |
 | 3 | Oclusão real | o modo 3 é uma aproximação (contagem zero); falta medir a oclusão de verdade pelo Vulkan (occlusion queries). Risco atual: brilho de luzes mais fraco em algumas cenas (modo 0 volta ao antigo) |
-| 4 | Névoa, água e fogo piscando; grade fina de linhas escuras | suspeitas: ballots wave64 em fluxo divergente, texturas BC 1D; os faróis e o brilho de luzes que piscavam já foram corrigidos (oclusão, modo 3) |
+| 4 | Névoa, água e fogo piscando; grade fina de linhas escuras | suspeitas: ballots wave64 em fluxo divergente, texturas BC 1D; os faróis e o brilho de luzes que piscavam já foram corrigidos (oclusão, modo 3). Candidata, a confirmar no jogo: em GPUs com subgrupo padrão de 32 e suporte a 64, os compute shaders rodavam com 64 lanes mas traduzidos para 32; agora são traduzidos para 64 (o cache de shaders é refeito uma vez depois de atualizar; o log mostra `GPU: host subgroup size`) |
 | 5 | Brilho azul do dreno de drones | não aparece; ballot wave64, stencil ou readback |
 | 6 | RX 580 / Polaris no Windows | crash em `amdvlk64.dll+0xebbbb` (#31, #49, #59, #65, #67, #81); causa em investigação; as BC 1D minúsculas são decodificadas na CPU (`ISS_BC_TINY`) e o BP09 está para teste |
 | 7 | GPU de 4 GB de VRAM | a memória de textura estoura (#72, #75); a investigar; por enquanto baixe a resolução. "Precisão da GPU: Rápido" escurece a imagem |
@@ -73,7 +73,9 @@ Linux), mouse camera and touchpad mode, controller guides, the Support and Updat
 
 Open, by priority: (1) performance — the game thread waits on GPU readbacks; (2) shader-compile stutter — needs an
 on-disk pipeline cache (BP08 is experimental and off); (3) real occlusion through Vulkan (mode 3 is an approximation);
-(4) flickering fog/water/fire and a fine dark grid; (5) the missing blue drone-drain glow; (6) the RX 580/Polaris crash
+(4) flickering fog/water/fire and a fine dark grid (a candidate fix, to be confirmed in game: on GPUs with a default
+subgroup size of 32 that support 64, compute shaders ran 64 lanes with the 32-lane wave64 lowering and are now lowered
+for 64; the shader cache is rebuilt once after updating, and the log shows `GPU: host subgroup size`); (5) the missing blue drone-drain glow; (6) the RX 580/Polaris crash
 on Windows; (7) GPUs with 4 GB of VRAM; (8) Quadro/Maxwell; (9) BC 1D textures; (10) an automatic updater (the Updates
 screen only checks); (11) validating the mouse; (12) validating Windows on more PCs; (13) the 1.07 `param.sfo` in the
 game view; (14) game languages from the game data; (15) the `ISS_`/`TLG_`/`PSCORE_` prefix.
