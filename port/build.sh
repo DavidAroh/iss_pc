@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
+# Players' names work too (the README says ISS_LTO=OFF): ISS_LTO/ISS_PGO set TLG_LTO/TLG_PGO.
+[[ -n ${ISS_LTO:-} && -z ${TLG_LTO:-} ]] && export TLG_LTO=$ISS_LTO
+[[ -n ${ISS_PGO:-} && -z ${TLG_PGO:-} ]] && export TLG_PGO=$ISS_PGO
 # The commit the probe logs on its first line (CI: GITHUB_SHA; local: git, plus "+dirty").
 if [[ -z ${TLG_BUILD_COMMIT:-} ]]; then
     TLG_BUILD_COMMIT=${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}
