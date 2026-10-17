@@ -463,6 +463,18 @@ void Rasterizer::SchedulerOwnerHook(void* context, void* caller) {
     }
     if (stage_a) {
         self->DrainDrawPipe(DrawPipe::ReasonRasterizer, __LINE__, __func__);
+        return;
+    }
+    // tlg: TLG_OWNER_ABORT=1 stops here instead of only logging: a foreign thread (a guest
+    // memory hook or the fault handler) reached the scheduler while packets were in flight,
+    // which is where a crash in the record chunks comes from. The stack shows the site.
+    static const bool abort_on_foreign = [] {
+        const char* env = std::getenv("TLG_OWNER_ABORT");
+        return env && *env == '1';
+    }();
+    if (abort_on_foreign) {
+        std::fflush(stderr);
+        std::abort();
     }
 }
 
@@ -484,6 +496,23 @@ void Rasterizer::DrainDrawPipe(u32 reason, u32 line, const char* function) {
 
 bool Rasterizer::IsGpuSideThread() const {
     return OnStageA() || DrawPipe::OnStageB();
+}
+
+void Rasterizer::RunForeign(std::function<void()> work) {
+    // tlg: TLG_FOREIGN_SERIALIZE=1: guest threads (host memory hooks) and the userfaultfd thread
+    // reach cache state the draw recording thread owns (see UnmapMemory). The work then runs in
+    // order with the draws handed over before it -- on the draw recording thread while the pipe
+    // is in use, as a readback does -- instead of beside the packet being recorded. Off by
+    // default: it adds a wait on the GPU command thread to a path that ran un-queued.
+    static const bool serialize = [] {
+        const char* env = std::getenv("TLG_FOREIGN_SERIALIZE");
+        return env && *env == '1';
+    }();
+    if (!serialize || IsGpuSideThread()) {
+        work();
+        return;
+    }
+    liverpool->SendCommand<true, true>(std::move(work));
 }
 
 bool Rasterizer::IsGpuSideThreadId(u32 tid) const {
@@ -915,6 +944,7 @@ void Rasterizer::PrintPipeStats() {
     }
     static auto window = std::chrono::steady_clock::now();
     static u64 last_packets = 0, last_drains = 0, last_drain_cycles = 0, last_busy = 0;
+    static u64 last_ring_waits = 0, last_ring_cycles = 0, last_spin = 0, last_sleeps = 0;
     static u64 last_tsc = __rdtsc();
     const auto now = std::chrono::steady_clock::now();
     const double seconds = std::chrono::duration<double>(now - window).count();
@@ -924,12 +954,23 @@ void Rasterizer::PrintPipeStats() {
     const u64 tsc = __rdtsc();
     const double cycles = double(tsc - last_tsc);
     const u64 busy = draw_pipe->busy_cycles.load(std::memory_order_relaxed);
+    const u64 spin = draw_pipe->spin_cycles.load(std::memory_order_relaxed);
+    const u64 sleeps = draw_pipe->sleeps.load(std::memory_order_relaxed);
     std::printf("Draw pipe: %.0f draws/s pipelined, %.0f drains/s that waited, stage A waited "
-                "%.1f%%, stage B busy %.1f%%\n",
+                "%.1f%%, stage B busy %.1f%%, stage B idle-spin %.1f%% (%llu sleeps); %llu "
+                "ring-full waits, stage A waited %.1f%% for room\n",
                 (draw_pipe->packets - last_packets) / seconds,
                 (draw_pipe->drains - last_drains) / seconds,
                 100.0 * (draw_pipe->drain_cycles - last_drain_cycles) / cycles,
-                100.0 * (busy - last_busy) / cycles);
+                100.0 * (busy - last_busy) / cycles,
+                100.0 * (spin - last_spin) / cycles,
+                static_cast<unsigned long long>(sleeps - last_sleeps),
+                static_cast<unsigned long long>(draw_pipe->ring_waits - last_ring_waits),
+                100.0 * (draw_pipe->ring_wait_cycles - last_ring_cycles) / cycles);
+    last_ring_waits = draw_pipe->ring_waits;
+    last_ring_cycles = draw_pipe->ring_wait_cycles;
+    last_spin = spin;
+    last_sleeps = sleeps;
     std::printf("  drains by reason/s:");
     for (u32 r = 0; r < DrawPipe::NumReasons; ++r) {
         if (const u64 n = draw_pipe->drains_by_reason[r]) {
@@ -3806,8 +3847,13 @@ void Rasterizer::RegisterMemory(VAddr addr, u64 size) {
 
 void Rasterizer::UnmapMemory(VAddr addr, u64 size) {
     DrainDrawPipe();
+    // tlg: the host memory hooks call this on a guest thread, where DrainDrawPipe does nothing:
+    // buffer_cache.InvalidateMemory queues its own readback (SendCommand) but
+    // texture_cache.UnmapMemory untracks and frees images, resolving their readbacks as a
+    // GPU-side thread would, while the draw recording thread may be running earlier draws that
+    // use them. TLG_FOREIGN_SERIALIZE=1 runs it in order with those draws instead.
     buffer_cache.InvalidateMemory(addr, size);
-    texture_cache.UnmapMemory(addr, size);
+    RunForeign([this, addr, size] { texture_cache.UnmapMemory(addr, size); });
     {
         std::scoped_lock lock{mapped_ranges_mutex};
         mapped_ranges -= decltype(mapped_ranges)::interval_type::right_open(addr, addr + size);

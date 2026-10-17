@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#ifndef _WIN32
+#include <pthread.h> // tlg: the recording thread's CPU clock (frame stats)
+#endif
 #include <unordered_map>
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -26,6 +29,14 @@
 namespace Vulkan {
 
 std::mutex Scheduler::submit_mutex;
+
+// tlg: statistics the frame stats printer reads (driver.cpp declares these). Defined here so
+// that no header shared with the shader cache changes.
+/// CPU clock id (Linux) / thread id (Windows) of the Vulkan recording thread.
+std::atomic<int> g_tlg_recorder_cpu_clock{-1};
+std::atomic<u32> g_tlg_recorder_cpu_tid{0};
+/// Time the recording thread spent spinning for the next chunk before it slept.
+std::atomic<u64> g_tlg_recorder_spin_ns{0};
 
 Scheduler::Scheduler(const Instance& instance, bool threaded_recording)
     : instance{instance}, work_semaphore{instance}, command_pool{instance, &work_semaphore} {
@@ -316,6 +327,21 @@ void Scheduler::SyncRecording() {
 
 void Scheduler::RecorderThread(std::stop_token stoken) {
     Common::SetCurrentThreadName("tlg:VkRecorder");
+    // tlg: this thread's CPU clock (frame stats), as the GPU command thread does. The first
+    // recorder to start keeps the slot (the draw scheduler's; a presenter scheduler records
+    // much less).
+    {
+#ifndef _WIN32
+        int expected = -1;
+        if (clockid_t clock; pthread_getcpuclockid(pthread_self(), &clock) == 0) {
+            g_tlg_recorder_cpu_clock.compare_exchange_strong(expected, static_cast<int>(clock));
+        }
+#else
+        u32 expected = 0;
+        g_tlg_recorder_cpu_tid.compare_exchange_strong(expected,
+                                                       static_cast<u32>(GetCurrentThreadId()));
+#endif
+    }
     while (true) {
         // Spin briefly before sleeping: the next chunk usually follows within microseconds,
         // and a sleeping recorder costs the GPU thread a wake-up syscall per kick. With few
@@ -323,11 +349,19 @@ void Scheduler::RecorderThread(std::stop_token stoken) {
         static const auto spin_time = std::chrono::microseconds(
             TlgThreads::Available() >= 12 ? 200 : 20);
         const auto spin_until = std::chrono::steady_clock::now() + spin_time;
+        const auto spin_start = std::chrono::steady_clock::now();
         for (u32 spins = 1; queued_chunks.load(std::memory_order_acquire) == 0; ++spins) {
             __builtin_ia32_pause();
             // The clock is read every 256 pauses, not per iteration.
             if (!(spins & 255) &&
                 (stoken.stop_requested() || std::chrono::steady_clock::now() >= spin_until)) {
+                // tlg: the spin found nothing: CPU taken from the game's threads. Reported as
+                // idle in the frame stats, not as work.
+                g_tlg_recorder_spin_ns.fetch_add(
+                    static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                         std::chrono::steady_clock::now() - spin_start)
+                                         .count()),
+                    std::memory_order_relaxed);
                 break;
             }
         }

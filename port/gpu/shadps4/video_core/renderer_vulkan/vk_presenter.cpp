@@ -47,6 +47,12 @@
 
 namespace Vulkan {
 
+// tlg: frame stats the presentation threads accumulate and driver.cpp prints (it declares
+// these): the frame-limit wait in PrepareFrame (the GPU falling behind), and the wait for a
+// free presentation frame in GetRenderFrame (the swapchain holding frames).
+std::atomic<u64> g_tlg_frames_ahead_wait_ns{0};
+std::atomic<u64> g_tlg_free_frame_wait_ns{0};
+
 bool CanBlitToSwapchain(const vk::PhysicalDevice physical_device, vk::Format format) {
     const vk::FormatProperties props{physical_device.getFormatProperties(format)};
     return static_cast<bool>(props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitDst);
@@ -569,7 +575,15 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
             const u64 tick = recent_frame_ticks.front();
             recent_frame_ticks.pop_front();
             if (recent_frame_ticks.size() == frames_ahead) {
+                // tlg: this is the guest's frame boundary waiting for the GPU: the frame stats
+                // report how much of the flip interval it takes (TLG_FRAME_STATS).
+                const auto wait_start = std::chrono::steady_clock::now();
                 draw_scheduler.Wait(tick);
+                g_tlg_frames_ahead_wait_ns.fetch_add(
+                    static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                         std::chrono::steady_clock::now() - wait_start)
+                                         .count()),
+                    std::memory_order_relaxed);
             }
         }
     }
@@ -882,8 +896,16 @@ Frame* Presenter::GetRenderFrame() {
     // Wait for free presentation frames
     Frame* frame;
     {
+        const auto wait_start = std::chrono::steady_clock::now();
         std::unique_lock lock{free_mutex};
         free_cv.wait(lock, [this] { return !free_queue.empty(); });
+        // tlg: every frame without a free slot is a frame the swapchain still holds: the frame
+        // stats report the wait (TLG_FRAME_STATS).
+        g_tlg_free_frame_wait_ns.fetch_add(
+            static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                 std::chrono::steady_clock::now() - wait_start)
+                                 .count()),
+            std::memory_order_relaxed);
         LOG_DEBUG(Render_Vulkan, "Got render frame, remaining {}", free_queue.size() - 1);
 
         // Take the frame from the queue
@@ -900,6 +922,7 @@ Frame* Presenter::GetRenderFrame() {
     };
 
     // Wait for the presentation to be finished so all frame resources are free
+    const auto fence_start = std::chrono::steady_clock::now();
     while (wait() != vk::Result::eSuccess) {
         ASSERT_MSG(result != vk::Result::eErrorDeviceLost,
                    "Device lost during waiting for a frame");
@@ -908,6 +931,13 @@ Frame* Presenter::GetRenderFrame() {
             continue;
         }
     }
+    // tlg: waitForFences is untimed today; the frame stats show how long the fence of the
+    // frame being reused still took (TLG_FRAME_STATS).
+    g_tlg_free_frame_wait_ns.fetch_add(
+        static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             std::chrono::steady_clock::now() - fence_start)
+                             .count()),
+        std::memory_order_relaxed);
 
     if (frame->width != expected_frame_width || frame->height != expected_frame_height ||
         frame->is_hdr != swapchain.GetHDR()) {

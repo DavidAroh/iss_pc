@@ -140,6 +140,14 @@ public:
     [[nodiscard]] bool DrawPipeIdle() const {
         return !draw_pipe || draw_pipe->Idle();
     }
+    /// tlg: the draw recording thread's CPU clock id (Linux) and thread id (Windows), for the
+    /// frame statistics; -1/0 when the pipe is off or the thread has not started.
+    [[nodiscard]] int DrawPipeCpuClock() const {
+        return draw_pipe ? draw_pipe->cpu_clock.load(std::memory_order_relaxed) : -1;
+    }
+    [[nodiscard]] u32 DrawPipeCpuThreadId() const {
+        return draw_pipe ? draw_pipe->cpu_tid.load(std::memory_order_relaxed) : 0;
+    }
     /// Stage A, end of a submission: its prepared draws stay alive until the recording thread
     /// has recorded them (instead of a drain).
     void RetireSubmission();
@@ -157,6 +165,10 @@ public:
     /// The GPU command thread or the draw recording thread (fault handling runs inline there).
     bool IsGpuSideThread() const;
     bool IsGpuSideThreadId(u32 tid) const;
+    /// tlg: TLG_FOREIGN_SERIALIZE=1 sends work a non-GPU-side thread runs on state the draw
+    /// recording thread owns (today: the image part of UnmapMemory) to the GPU command thread,
+    /// in order with the draws handed over before it. Off by default.
+    void RunForeign(std::function<void()> work);
     /// A guest write hit a protected page.
     bool OnWriteFault(VAddr addr, bool assume_locks);
     bool ReadMemory(VAddr addr, u64 size, bool assume_locks = false);
