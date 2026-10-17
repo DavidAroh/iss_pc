@@ -285,9 +285,9 @@ class Launcher:
         lang.columnconfigure(1, weight=1)
         self.game_language_now = ttk.Label(lang)
         self.game_language_now.grid(row=0, column=2, sticky='w')
-        self.combo(lang, 0, 'game_language', ['auto'] + list(tlg_run.GAME_LANGUAGES),
-                   lambda k: self.t('game_language_auto') if k == 'auto' else GAME_LANGUAGE_NAMES[k],
-                   on_change=self.show_game_language)
+        self.game_language_keys = tlg_run.game_language_choices(self.settings)   # the languages the game files have
+        self.game_language_box = self.combo(lang, 0, 'game_language', self.game_language_keys, self.game_language_name,
+                                            on_change=self.show_game_language)
         self.show_game_language()
         self.combo(lang, 1, 'ui_language', UI_LANGUAGES,
                    lambda k: self.t('auto') if k == 'auto' else UI_LANGUAGE_NAMES[k], on_change=self.build)
@@ -406,6 +406,19 @@ class Launcher:
         box.bind('<<ComboboxSelected>>', picked)
         return box
 
+    def game_language_name(self, key):
+        return self.t('game_language_auto') if key == 'auto' else GAME_LANGUAGE_NAMES[key]
+
+    def refresh_game_languages(self):
+        """Another game folder: offer the languages its files have (combo() reads the same list)."""
+        keys = tlg_run.game_language_choices(self.settings)
+        if keys != self.game_language_keys:
+            self.game_language_keys[:] = keys
+            self.game_language_box.configure(values=[self.game_language_name(k) for k in keys])
+            current = self.settings.get('game_language', 'auto')
+            self.game_language_box.current(keys.index(current) if current in keys else 0)
+            self.show_game_language()
+
     def show_game_language(self):
         """Beside the box: which language 'Automatic' resolves to (same function that build_env uses)."""
         if self.settings.get('game_language', 'auto') in tlg_run.GAME_LANGUAGES:
@@ -487,6 +500,7 @@ class Launcher:
             except tk.TclError:
                 pass  # spinbox while typing
         tlg_run.save_settings(self.settings)
+        self.refresh_game_languages()
         self.refresh_status()
 
     def refresh_status(self):

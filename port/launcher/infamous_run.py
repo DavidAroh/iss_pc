@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import re
+import struct
 import subprocess
 import sys
 import time
@@ -86,9 +87,11 @@ LOG_DIR = OUT_DIR / 'logs'
 PROBE = OUT_DIR / ('tlg-probe.exe' if os.name == 'nt' else 'tlg-probe')
 KEEP_LOGS = 30
 
-# Game language: PS4 system language ids (sceSystemServiceParamGetInt LANG). The list the game
-# really ships voice/text for is still to be checked against the dump.
+# Game language: PS4 system language ids (sceSystemServiceParamGetInt LANG). Which of them the
+# player's dump has comes from its PlayGo chunks (game_languages).
 GAME_LANGUAGES = {'en': 1, 'pt_BR': 17, 'es_LA': 20, 'fr_CA': 22, 'tr': 19, 'ru': 8}
+# PlayGo language ids whose data serves each choice (a package may tag French as 2, not 22).
+_LANGUAGE_IDS = {'en': (1, 18), 'pt_BR': (17, 7), 'es_LA': (20, 3), 'fr_CA': (22, 2), 'tr': (19,), 'ru': (8,)}
 
 _LANGUAGE_PREFIX = {'pt': 'pt_BR', 'es': 'es_LA', 'fr': 'fr_CA', 'tr': 'tr', 'ru': 'ru'}
 
@@ -120,10 +123,57 @@ def system_game_language(environ=None):
     return _LANGUAGE_PREFIX.get(re.split(r'[_\-.@]', code.strip().lower())[0], 'en')
 
 
-def resolve_game_language(settings, environ=None):
-    """settings['game_language'] when it is one of GAME_LANGUAGES; 'auto' (or anything unknown) follows the system."""
+def playgo_languages(path):
+    """PS4 language ids the package has its own PlayGo chunks for, from sce_sys/playgo-chunk.dat
+    ("plgo"; chunk count at 10, chunk attribute table offset at 192; each 32-byte attribute has a
+    64-bit language mask at 16, bit 63 - id). Chunks for every language (mask 0 or all ones) say
+    nothing, so a package without language chunks gives an empty set."""
+    data = Path(path).read_bytes()
+    if data[:4] != b'plgo' or len(data) < 200:
+        raise ValueError('not a PlayGo chunk file')
+    count = struct.unpack_from('<H', data, 10)[0]
+    table = struct.unpack_from('<I', data, 192)[0]
+    if table + count * 32 > len(data):
+        raise ValueError('PlayGo chunk table out of the file')
+    ids = set()
+    for i in range(count):
+        mask = struct.unpack_from('<Q', data, table + i * 32 + 16)[0]
+        if mask & 0xffffffff and not mask >> 32:  # written big-endian: ids 0-31 are the high bits
+            mask = int.from_bytes(mask.to_bytes(8, 'little'), 'big')
+        if mask not in (0, (1 << 64) - 1):
+            ids |= {63 - bit for bit in range(64) if mask >> bit & 1}
+    return ids
+
+
+def game_languages(game_dir):
+    """The GAME_LANGUAGES keys the game files have, in that order, from the PlayGo chunk languages
+    of <game>/sce_sys/playgo-chunk.dat; every key when that cannot tell (no file: FTP dumps do not
+    expose it; or no language chunk). param.sfo is no help: its TITLE_xx keys are store titles."""
+    ids = set()
+    if game_dir:
+        try:
+            ids = _cached(Path(game_dir) / 'sce_sys' / 'playgo-chunk.dat', 'languages', playgo_languages)
+        except (OSError, ValueError, struct.error):
+            pass
+    return [key for key, codes in _LANGUAGE_IDS.items() if ids & set(codes)] or list(GAME_LANGUAGES)
+
+
+def game_language_choices(settings):
+    """The game language box of both launchers: 'auto', the languages the game files have and the
+    saved choice even when they lack it (never changed behind the player's back)."""
+    keys = ['auto'] + game_languages(settings.get('game_dir', ''))
     choice = settings.get('game_language', 'auto')
-    return choice if choice in GAME_LANGUAGES else system_game_language(environ)
+    return keys + [choice] if choice in GAME_LANGUAGES and choice not in keys else keys
+
+
+def resolve_game_language(settings, environ=None):
+    """settings['game_language'] when it is one of GAME_LANGUAGES; 'auto' (or anything unknown) follows
+    the system, or English (else the first language they have) when the game files lack that language."""
+    choice = settings.get('game_language', 'auto')
+    if choice in GAME_LANGUAGES:
+        return choice
+    system, present = system_game_language(environ), game_languages(settings.get('game_dir', ''))
+    return system if system in present else 'en' if 'en' in present else present[0]
 
 
 # TLG core defaults (the reasons are in each comment; still to be validated on this game).
@@ -191,6 +241,8 @@ def save_settings(settings):
 # The supported eboot.bin (update 1.07, US): entry point and memory image size from its ELF
 # headers, the same whatever tool decrypted it (base 1.00 is 0x933850 / 85,115,231 bytes).
 EBOOT_107 = (0x61dfd0, 133_846_143)
+# APP_VER of the update's param.sfo; mods (cheat XML) are chosen by it.
+APP_VER_107 = '01.07'
 
 # Messages about the player's game folder (en, pt); the launcher shows them in its language,
 # the command line prints both. {detail} names the file.
@@ -207,11 +259,17 @@ TEXT = {
                     'CUSA00223 (US) 1.07. ' + _COPY_UPDATE[0],
                     'O eboot.bin não é o do update 1.07 ({detail}); o port só é testado com o CUSA00223 (EUA) '
                     '1.07. ' + _COPY_UPDATE[1]),
+    'old_param': ('{detail} is not the one from update 1.07: the game starts, but cheats (mods) made for 1.07 '
+                  'are not listed. Copy the 1.07 param.sfo (on the PS4: /system_data/priv/appmeta/CUSA00223/param.sfo) '
+                  'into the game folder\'s sce_sys/; see "Required game files" in the README.',
+                  'O {detail} não é o do update 1.07: o jogo abre, mas os cheats (mods) feitos para o 1.07 não '
+                  'aparecem. Copie o param.sfo do 1.07 (no PS4: /system_data/priv/appmeta/CUSA00223/param.sfo) '
+                  'para o sce_sys/ da pasta do jogo; veja "Arquivos do jogo necessários" no README.'),
     'unreadable': ('{detail} could not be read (damaged, incomplete or still encrypted): dump it again from the PS4.',
                    'Não deu para ler o {detail} (danificado, incompleto ou ainda criptografado): faça o dump de novo no PS4.'),
 }
 # Problems that are reported but do not block Play.
-WARNINGS = {'other_eboot'}
+WARNINGS = {'other_eboot', 'old_param'}
 
 
 def message(key, portuguese=None, **fmt):
@@ -278,6 +336,10 @@ def check_game(game_dir):
             entry, size = _cached(eboot, 'layout', eboot_layout)
             if (entry, size) != EBOOT_107:
                 problems.append(('other_eboot', f'entry={entry:#x}, image={size:,} bytes'))
+            else:  # the base 1.00 param.sfo beside the 1.07 eboot: no 1.07 mods
+                version = mod_patches.game_app_version(game)
+                if version not in (None, APP_VER_107):
+                    problems.append(('old_param', f'sce_sys/param.sfo (APP_VER {version})'))
         except (OSError, ValueError, KeyError, StopIteration) as error:
             problems.append(('unreadable', f'eboot.bin ({error})'))
     for module in MODULES:
