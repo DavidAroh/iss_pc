@@ -150,7 +150,9 @@ class DownloadTests(unittest.TestCase):
         self.assertEqual(ctx.exception.kind, 'checksum')
         with self.assertRaises(releases.UpdateError):
             updater.verify('a.zip', 'f' * 64, {'b.zip': 'f' * 64})
-        self.assertFalse(updater.verify('a.zip', 'f' * 64, None))   # no SHA256SUMS: size only
+        with self.assertRaises(releases.UpdateError):   # no SHA256SUMS and no API digest: refused
+            updater.verify('a.zip', 'f' * 64, None)
+        self.assertTrue(updater.verify('a.zip', 'f' * 64, None, 'sha256:' + 'f' * 64))
 
     def test_https_only(self):
         release, files = release_with(b'abc')

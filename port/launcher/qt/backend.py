@@ -448,6 +448,8 @@ class Backend(QObject):
     # -- play (same path as the Tk launcher: prepare() then launch()) -------------------------------
     @Slot()
     def play(self):
+        if self.updates.busy:
+            return
         if self._play_state != 'idle' or not self._ready:
             return
         tlg_run.save_settings(self.settings)

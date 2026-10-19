@@ -173,12 +173,18 @@ def download(asset, dest, version='', opener=None, progress=None, cancelled=None
     return digest.hexdigest()
 
 
-def verify(name, digest, sums):
-    """True when SHA256SUMS confirmed the file, False when the release has no SHA256SUMS (only the
-    size was checked). Raises UpdateError('checksum') on a mismatch or a list without the file."""
+def verify(name, digest, sums, asset_digest=''):
+    """True when SHA256SUMS (or, without it, the API's SHA-256 of the asset) confirms the file.
+    Raises UpdateError('unverified') when the release publishes neither, and UpdateError('checksum')
+    on a mismatch or a list without the file. Both come from the same release answer: integrity,
+    not a signature."""
     if sums is None:
-        return False
-    if sums.get(name) != digest.lower():
+        if not re.fullmatch(r'sha256:[0-9a-fA-F]{64}', asset_digest):
+            raise UpdateError('unverified', name)
+        expected = asset_digest[7:].lower()
+    else:
+        expected = sums.get(name)
+    if expected != digest.lower():
         raise UpdateError('checksum', name)
     return True
 
