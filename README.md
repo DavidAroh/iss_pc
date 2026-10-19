@@ -42,10 +42,13 @@ Obrigado a todas as pessoas que ajudaram este projeto. [Veja a lista completa de
   <a href="https://github.com/Andretuta"><img src="https://avatars.githubusercontent.com/u/219594641?v=4" width="80" alt="Andretuta"><br>Andretuta</a>&nbsp;&nbsp;
   <a href="https://github.com/Playdbunny"><img src="https://avatars.githubusercontent.com/u/70190491?v=4" width="80" alt="Playdbunny"><br>Playdbunny</a>&nbsp;&nbsp;
   <a href="https://github.com/EdouardSence"><img src="https://avatars.githubusercontent.com/u/103503538?v=4" width="80" alt="EdouardSence"><br>EdouardSence</a>&nbsp;&nbsp;
+  <a href="https://github.com/HayatoG/iss_pc/graphs/contributors"><img src="https://github.com/identicons/guilherme-oliveira.png" width="80" alt="Identicon do GitHub para Guilherme Oliveira"><br>Guilherme Oliveira</a>&nbsp;&nbsp;
   <a href="https://github.com/batuhankiskac"><img src="https://github.com/batuhankiskac.png" width="80" alt="batuhankiskac"><br>batuhankiskac</a>
 </p>
 
-Thanks to everyone who has contributed to this project.
+Obrigado, Guilherme! O GitHub gera esse avatar porque a contribuição não está ligada a um perfil público.
+
+Thanks to everyone who has contributed to this project. GitHub generates Guilherme's avatar because the contribution is not linked to a public profile.
 
 ## Novidades
 
