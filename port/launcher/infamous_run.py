@@ -31,6 +31,7 @@ FROZEN = bool(getattr(sys, 'frozen', False))
 PORT_DIR = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
 REPO_DIR = PORT_DIR.parent
 OUT_DIR = PORT_DIR / 'out'
+BUILTIN_MODS = (PORT_DIR / 'patches' / 'iss_builtin_intro.xml',)
 sys.path.insert(0, str(PORT_DIR / 'scripts'))
 import mod_patches  # noqa: E402
 
@@ -59,7 +60,8 @@ def list_mods(settings):
     the mods folder for this game's version, with its current enabled state."""
     from infamous_patches import TITLE_IDS
     app_version = mod_patches.game_app_version(settings['game_dir'])
-    found = mod_patches.external_patches(mods_dir(), app_version, TITLE_IDS)
+    found = mod_patches.external_patches(
+        mods_dir(), app_version, TITLE_IDS, builtin_files=BUILTIN_MODS)
     selected = {key for key, _, _ in mod_patches.external_selection(found, mods_config())}
     return [(key, meta.get('Name'), meta.get('Note', ''), key in selected) for key, _, meta in found]
 
