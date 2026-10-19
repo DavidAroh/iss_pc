@@ -1,8 +1,3 @@
-<p align="center">
-  <a href="https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/307125/daily?language=C%2B%2B" alt="HayatoG%2Fiss_pc | Trendshift" width="250" height="55"/></a>
-  <a href="https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/307125/weekly?language=C%2B%2B" alt="HayatoG%2Fiss_pc | Trendshift" width="250" height="55"/></a>
-</p>
-
 <p align="center"><img src="port/packaging/icon/infamous-icon-1024.png" width="160" alt=""></p>
 
 <h1 align="center">inFAMOUS Second Son — port nativo para PC</h1>
@@ -19,6 +14,11 @@
 <p align="center"><a href="https://github.com/sponsors/HayatoG"><img src="https://img.shields.io/badge/Sponsor-HayatoG-ea4aaa?logo=githubsponsors&logoColor=white" alt="Sponsor HayatoG on GitHub"></a></p>
 
 <p align="center"><a href="https://github.com/HayatoG/iss_pc/actions/workflows/build.yml"><img src="https://github.com/HayatoG/iss_pc/actions/workflows/build.yml/badge.svg" alt="Build"></a></p>
+
+<p align="center">
+  <a href="https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/307125/daily?language=C%2B%2B" alt="HayatoG/iss_pc | Trendshift (daily)" width="250" height="55"></a>
+  <a href="https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/307125/weekly?language=C%2B%2B" alt="HayatoG/iss_pc | Trendshift (weekly)" width="250" height="55"></a>
+</p>
 
 > **Jogável, em desenvolvimento.** O jogo inicia, chega ao gameplay e passa pelos primeiros capítulos, mas o desempenho ainda é instável (20–30 FPS típicos numa RTX 2060) e há falhas de imagem conhecidas. Veja o [Status](#status).
 
