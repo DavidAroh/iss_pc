@@ -71,6 +71,7 @@ while ((${#queue[@]})); do
 done
 echo "Packaged $(find "$dest/out" -maxdepth 1 -iname '*.dll' | wc -l) DLLs from /clang64/bin"
 cp -r scripts "$dest/"
+cp -r patches "$dest/"
 # The shader list generator (scripts/build_jobs.py imports it from ../tools): plain files, like scripts/.
 mkdir -p "$dest/tools"
 cp -r tools/xpps "$dest/tools/"

@@ -47,7 +47,7 @@ Por **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) 
 
 ## Novidades
 
-- **Launcher novo (Qt Quick), agora o padrão:** com 8 telas (Jogar, Gráficos, Controles, Correções, Saves e dados, Guias de controle, Suporte, Atualizações), interface em português e inglês e o idioma do jogo seguindo o do sistema por padrão. O launcher antigo (Tk) continua no pacote como **inFAMOUS Second Son (classic)**, de reserva. Veja [O launcher](#o-launcher).
+- **Launcher novo (Qt Quick), agora o padrão:** com 10 telas, incluindo **Mods / Cheats** e **Avançado**, interface em português e inglês e o idioma do jogo seguindo o do sistema por padrão. O launcher antigo (Tk) continua no pacote como **inFAMOUS Second Son (classic)**, de reserva. Veja [O launcher](#o-launcher).
 - **Saves e dados:** pasta de dados configurável, backup antes de cada partida, exportar/importar `.zip`, duplicar e excluir saves, e a busca de saves de outras instalações. Resolve o "perdi meu save depois de atualizar". Veja [Saves e dados](#saves-e-dados).
 - **Faróis piscando e brilho que atravessava personagens: corrigido.** O contador de oclusão que o jogo lê para saber quanto de uma luz está visível era falso; o novo modo 3 (o padrão) devolve contagem zero, e isso corrigiu o problema, **confirmado no Windows e no Linux**. Veja [Luzes e oclusão](#luzes-e-oclusão).
 - **Correções experimentais BP01–BP12:** doze correções trazidas de outros ports de PS4 e do shadPS4, com chave individual, perfil Recomendado e o "Como a release anterior" para comparar. Veja [Correções experimentais](#correções-experimentais).
@@ -152,6 +152,8 @@ O launcher é o programa que abre ao executar **inFAMOUS Second Son**. O novo (Q
 | **Saves e dados** | pasta de dados, lista de saves, backups, exportar/importar `.zip`; veja [Saves e dados](#saves-e-dados) |
 | **Guias de controle** | imagens Xbox, Switch Pro e 8BitDo (português e inglês): salvar, copiar, abrir a pasta |
 | **Suporte** | problemas conhecidos para a sua GPU, links e o relatório de problema; veja [Logs e relatórios](#logs-e-relatórios) |
+| **Mods / Cheats** | ativa cheats XML e o patch opcional para pular o vídeo inicial de logos (não pula cutscenes da história) |
+| **Avançado** | configurações adicionais do launcher e do port |
 | **Atualizações** | mostra a versão instalada e verifica a última release (veja abaixo) |
 
 **Idioma da interface:** português (Brasil) ou inglês (EUA), que o launcher escolhe pelo idioma do sistema e dá para trocar. Quando você escolhe um, o launcher passa a escolha ao jogo (`ISS_UI_LANG`) para o overlay.
@@ -410,7 +412,7 @@ The screenshots are at the top of this page.
 
 ## What's new
 
-- **New launcher (Qt Quick), now the default:** 8 screens (Play, Graphics, Controls, Fixes, Saves & data, Controller guides, Support, Updates), the interface in Portuguese and English, and the game language following the system's by default. The old launcher (Tk) stays in the package as **inFAMOUS Second Son (classic)**, as a fallback. See [The launcher](#the-launcher).
+- **New launcher (Qt Quick), now the default:** 10 screens, including **Mods / Cheats** and **Advanced**, the interface in Portuguese and English, and the game language following the system's by default. The old launcher (Tk) stays in the package as **inFAMOUS Second Son (classic)**, as a fallback. See [The launcher](#the-launcher).
 - **Saves and data:** a configurable data folder, a backup before every play session, `.zip` export/import, duplicate and delete saves, and a search for saves from other installs. It fixes the "I lost my save after updating" problem. See [Saves and data](#saves-and-data).
 - **Flickering headlights and glare that showed through characters: fixed.** The occlusion counter the game reads to know how much of a light is visible was a fake; the new mode 3 (the default) answers with zero counts, and that fixed the problem, **confirmed on Windows and on Linux**. See [Lights and occlusion](#lights-and-occlusion).
 - **Experimental fixes BP01–BP12:** twelve fixes brought from other PS4 ports and from shadPS4, each with its own switch, a Recommended profile and a "Like the previous release" button to compare. See [Experimental fixes](#experimental-fixes).
@@ -515,6 +517,8 @@ The launcher is the program that opens when you run **inFAMOUS Second Son**. The
 | **Saves & data** | data folder, list of saves, backups, `.zip` export/import; see [Saves and data](#saves-and-data) |
 | **Controller guides** | Xbox, Switch Pro and 8BitDo images (Portuguese and English): save, copy, open the folder |
 | **Support** | known problems for your GPU, links and the problem report; see [Logs and reports](#logs-and-reports) |
+| **Mods / Cheats** | enables cheat XML files and the optional boot logo movie skip (story cutscenes remain unchanged) |
+| **Advanced** | additional launcher and port settings |
 | **Updates** | shows the installed version and checks the latest release (see below) |
 
 **Interface language:** Portuguese (Brazil) or English (US), which the launcher picks from the system language and you can change. When you pick one, the launcher passes it to the game (`ISS_UI_LANG`) for the overlay.

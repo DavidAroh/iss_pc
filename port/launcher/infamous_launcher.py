@@ -83,9 +83,9 @@ TEXT = {
     'mods': ('Mods / Cheats…', 'Mods / Cheats…'),
     'mods_title': ('Mods / Cheats', 'Mods / Cheats'),
     'mods_hint': ('Drop shadPS4/GoldHEN cheat XML files in the mods folder, then turn them on here. '
-                  'Nothing here changes the game until you enable it.',
+                  'The built-in boot intro skip is off by default. Nothing changes until you enable a mod.',
                   'Solte arquivos de cheat XML no formato shadPS4/GoldHEN na pasta de mods e ligue aqui. '
-                  'Nada muda no jogo até você ativar.'),
+                  'O patch incluído para pular o vídeo inicial vem desligado. Nada muda até você ativar um mod.'),
     'mods_warning': ('A cheat can crash the game or behave oddly; if that happens, turn it off here.',
                      'Um cheat pode travar o jogo ou se comportar de forma estranha; se isso acontecer, desligue aqui.'),
     'mods_folder': ('Open mods folder', 'Abrir pasta de mods'),

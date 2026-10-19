@@ -462,7 +462,7 @@
   "nav_advanced": {"en": "Advanced", "pt": "Avançado"},
   "nav_mods": {"en": "Mods", "pt": "Mods"},
   "mods_title": {"en": "Mods / Cheats", "pt": "Mods / Cheats"},
-  "mods_intro": {"en": "Drop shadPS4/GoldHEN cheat XML files in the mods folder, then turn them on here. Nothing here changes the game until you enable it.", "pt": "Solte arquivos de cheat XML no formato shadPS4/GoldHEN na pasta de mods e ligue aqui. Nada muda no jogo até você ativar."},
+  "mods_intro": {"en": "Drop shadPS4/GoldHEN cheat XML files in the mods folder, then turn them on here. The built-in boot intro skip is off by default. Nothing changes until you enable a mod.", "pt": "Solte arquivos de cheat XML no formato shadPS4/GoldHEN na pasta de mods e ligue aqui. O patch incluído para pular o vídeo inicial vem desligado. Nada muda até você ativar um mod."},
   "mods_warning": {"en": "A cheat can crash the game or behave oddly; if that happens, turn it off here.", "pt": "Um cheat pode travar o jogo ou se comportar de forma estranha; se isso acontecer, desligue aqui."},
   "mods_folder": {"en": "Open mods folder", "pt": "Abrir pasta de mods"},
   "mods_refresh": {"en": "Refresh list", "pt": "Atualizar lista"},
