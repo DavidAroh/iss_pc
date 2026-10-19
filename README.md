@@ -32,6 +32,8 @@ Por **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) 
 
 <sub>Capturas na resolução nativa (1920×1080, reduzidas para 1280), direto da GPU, no Linux com uma RTX 2060.</sub>
 
+## Contribuidores / Contributors
+
 <p align="center">
   <a href="https://github.com/HayatoG"><img src="https://avatars.githubusercontent.com/u/22659047?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
   <a href="https://github.com/intemerated"><img src="https://avatars.githubusercontent.com/u/343755099?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
