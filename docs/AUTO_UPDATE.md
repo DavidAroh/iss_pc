@@ -28,9 +28,7 @@ no lugar pelo updater do Windows.
 
 Validação em 19/10/2026: 46 testes de updater, disco/recuperação e Qt passaram (42 antes da
 reconciliação de interrupção, mais 4 dela).
-Ainda falta validar a atualização completa com o auxiliar PyInstaller no Windows,
-incluindo manifesto produzido pelo empacotamento e arquivos em uso. Não houve
-teste de jogo nesta etapa.
+Validado em 19/10/2026 no Windows com testes reais: travas de arquivo, um segundo processo segurando o lock da instalação, espera de processo e o nome tlg-probe.exe; manifesto gerado pelo mesmo comando do empacotamento sobre um subconjunto real do pacote (A→B e restauração exata); e um auxiliar congelado com PyInstaller percorrendo entrega, aplicação, confirmação e restauração com processos reais. Ainda falta: o pacote completo gerado pelo package.sh, o launcher Qt congelado e o jogo. Não houve teste de jogo nesta etapa.
 
 ## English
 
@@ -57,5 +55,4 @@ belonging to this installation.
 Linux retains installation into a sibling folder. Windows in-place updates refuse
 Git checkouts. On 2026-10-19, all 46 updater, disk recovery and Qt tests passed (42 before the
 interrupted-update reconciliation, plus 4 for it).
-An end-to-end Windows PyInstaller update, packaging-generated manifest and locked
-files still need validation. No game was launched during this work.
+Validated on 2026-10-19 on Windows with real tests: file locks, a second process holding the install lock, process waits and the tlg-probe.exe name; a manifest from the packaging command on a real package subset (A to B and exact restore); and a PyInstaller-frozen stand-in running handoff, apply, confirm and restore with real processes. Still missing: the full package built by package.sh, the frozen Qt launcher and the game. No game was launched during this work.
