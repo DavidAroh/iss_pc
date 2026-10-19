@@ -32,6 +32,21 @@ Por **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) 
 
 <sub>Capturas na resolução nativa (1920×1080, reduzidas para 1280), direto da GPU, no Linux com uma RTX 2060.</sub>
 
+## Contribuidores / Contributors
+
+Obrigado a todas as pessoas que ajudaram este projeto. [Veja a lista completa de contribuições](https://github.com/HayatoG/iss_pc/graphs/contributors).
+
+<p align="center">
+  <a href="https://github.com/HayatoG"><img src="https://avatars.githubusercontent.com/u/22659047?v=4" width="80" alt="HayatoG"><br>HayatoG</a>&nbsp;&nbsp;
+  <a href="https://github.com/intemerated"><img src="https://avatars.githubusercontent.com/u/343755099?v=4" width="80" alt="intemerated"><br>intemerated</a>&nbsp;&nbsp;
+  <a href="https://github.com/Andretuta"><img src="https://avatars.githubusercontent.com/u/219594641?v=4" width="80" alt="Andretuta"><br>Andretuta</a>&nbsp;&nbsp;
+  <a href="https://github.com/Playdbunny"><img src="https://avatars.githubusercontent.com/u/70190491?v=4" width="80" alt="Playdbunny"><br>Playdbunny</a>&nbsp;&nbsp;
+  <a href="https://github.com/EdouardSence"><img src="https://avatars.githubusercontent.com/u/103503538?v=4" width="80" alt="EdouardSence"><br>EdouardSence</a>&nbsp;&nbsp;
+  <a href="https://github.com/batuhankiskac"><img src="https://github.com/batuhankiskac.png" width="80" alt="batuhankiskac"><br>batuhankiskac</a>
+</p>
+
+Thanks to everyone who has contributed to this project.
+
 ## Novidades
 
 - **Launcher novo (Qt Quick), agora o padrão:** com 8 telas (Jogar, Gráficos, Controles, Correções, Saves e dados, Guias de controle, Suporte, Atualizações), interface em português e inglês e o idioma do jogo seguindo o do sistema por padrão. O launcher antigo (Tk) continua no pacote como **inFAMOUS Second Son (classic)**, de reserva. Veja [O launcher](#o-launcher).
