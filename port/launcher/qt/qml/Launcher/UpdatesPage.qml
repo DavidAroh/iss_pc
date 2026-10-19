@@ -25,7 +25,7 @@ Item {
 
             Text { text: Theme.tr("upd_title"); color: "#fff"; font.family: Theme.fontDisplay; font.variableAxes: ({ "wght": 800 }); font.pixelSize: 42
                    font.weight: Font.ExtraBold; font.capitalization: Font.AllUppercase; font.letterSpacing: 2.1 }
-            Text { width: parent.width; text: Theme.tr("upd_intro"); wrapMode: Text.WordWrap; color: Theme.textDim
+            Text { width: parent.width; text: Updates.introText; wrapMode: Text.WordWrap; color: Theme.textDim
                    font.family: Theme.fontText; font.pixelSize: 13; lineHeight: 1.35; lineHeightMode: Text.ProportionalHeight }
 
             Rectangle {
@@ -76,6 +76,7 @@ Item {
                         GhostButton { visible: Updates.packaged && !Updates.canRestart; accent: Theme.warn; text: Theme.tr("upd_install")
                                       enabled: Updates.canInstall; onClicked: Updates.install() }
                         GhostButton { visible: Updates.canCancel; text: Theme.tr("upd_cancel"); onClicked: Updates.cancelDownload() }
+                        GhostButton { visible: Updates.canRollback; text: Theme.tr("upd_rollback"); onClicked: Updates.rollback() }
                         GhostButton { visible: Updates.canRestart; tone: "primary"; accent: Theme.warn; text: Theme.tr("upd_restart"); onClicked: Updates.restart() }
                         GhostButton { text: Theme.tr("upd_download"); enabled: Updates.canDownload; onClicked: Updates.download() }
                     }

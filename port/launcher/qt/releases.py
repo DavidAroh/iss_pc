@@ -159,7 +159,8 @@ def fetch_latest(version='', opener=urllib.request.urlopen, url=API_URL, timeout
             continue
         link = str(asset.get('browser_download_url') or '')
         if link.startswith(RELEASE_PREFIX + 'download/') and isinstance(asset.get('size'), int):
-            assets.append({'name': str(asset.get('name') or ''), 'url': link, 'size': asset['size']})
+            assets.append({'name': str(asset.get('name') or ''), 'url': link, 'size': asset['size'],
+                           'digest': str(asset.get('digest') or '')})
     return {'tag': tag, 'name': str(data.get('name') or tag), 'body': str(data.get('body') or ''),
             'url': page if page.startswith(RELEASE_PREFIX) else RELEASES_URL,    # only our own releases page opens
             'published': str(data.get('published_at') or '')[:10], 'assets': assets}
