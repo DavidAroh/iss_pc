@@ -15,6 +15,7 @@ from presets_current import CURRENT
 from presets_amd import AMD
 from presets_rx580 import RX580
 from presets_view import REC1, SECO
+from presets_apolar import APOLAR_PRESETS
 
 # ------------------------------------------------------------------------------------- presets
 # Keys a preset sets (anything a preset does not list goes back to the default of the table).
@@ -24,9 +25,10 @@ PRESET_ITEMS = ('menu:fps_limit', 'menu:frames_queued', 'menu:fsr1', 'menu:rcas'
                 'TLG_ASYNC_SHADERS', 'TLG_STALE_READBACK', 'TLG_DEFERRED_READBACK', 'TLG_BACKGROUND_WARMUP')
 # Full presets (presets_current.py) also set keys the plain ones never touch (GPU accuracy, read-ahead,
 # write merge, draw distance...): those keys are applied, and compared, only for the preset that lists them.
-FULL_PRESETS = {p['id']: p for p in (REC1, CURRENT, AMD, RX580, SECO)}
+FULL_PRESETS = {p['id']: p for p in (REC1, CURRENT, AMD, RX580, SECO, *APOLAR_PRESETS)}
 # Defaults of the launcher settings a full preset may set (infamous_run.DEFAULT_SETTINGS; a test keeps them equal).
-SETTING_DEFAULTS = {'vsync': True, 'gpu_readbacks': '2', 'eager_readback': False, 'write_merge': True}
+SETTING_DEFAULTS = {'vsync': True, 'gpu_readbacks': '2', 'eager_readback': False, 'write_merge': True,
+                    'show_fps': False, 'precompile_shaders': True}
 # id, settings overrides, item overrides (values as strings; unlisted = default)
 PRESETS = (
     (REC1['id'], REC1['settings'], REC1['items']),
@@ -34,6 +36,7 @@ PRESETS = (
     (AMD['id'], AMD['settings'], AMD['items']),
     (RX580['id'], RX580['settings'], RX580['items']),
     (SECO['id'], SECO['settings'], SECO['items']),
+    *((p['id'], p['settings'], p['items']) for p in APOLAR_PRESETS),
     ('performance', {'vsync': False}, {'menu:frames_queued': '2', 'menu:fsr1': '1', 'TLG_STALE_READBACK': '1'}),
     ('balanced', {}, {}),
     ('quality', {}, {'menu:fsr1': '1'}),

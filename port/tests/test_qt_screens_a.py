@@ -254,8 +254,27 @@ VkPhysicalDeviceMemoryProperties:
             for item_id, value in items.items():       # a value the table accepts (not silently dropped)
                 item = gfxlogic.item_by_id(item_id)
                 self.assertIn(value, [item.default] + [c[0] for c in item.choices] + ['0', '1'], item_id)
-        self.assertEqual(('rec1', 'current', 'amd', 'rx580', 'seco', 'performance', 'balanced', 'quality', 'ps4'),
+        self.assertEqual(('rec1', 'current', 'amd', 'rx580', 'seco', 'apolar_amd', 'apolar_rtx', 'apolar_gtx',
+                          'performance', 'balanced', 'quality', 'ps4'),
                          tuple(p[0] for p in gfxlogic.PRESETS))
+
+    def test_apolar_profiles_are_complete_and_credit_the_contributor(self):
+        expected = {
+            'apolar_amd': (True, '30', '1500000', None, 86),
+            'apolar_rtx': (True, '30', '600000', '1', 86),
+            'apolar_gtx': (False, '24', '400000', '1', 82),
+        }
+        for preset_id, (vsync, fps, far_clip, linear, item_count) in expected.items():
+            source = gfxlogic.FULL_PRESETS[preset_id]
+            self.assertEqual('Apolar', source['credit'])
+            self.assertEqual('https://github.com/sapoguruoficial-cmd', source['credit_url'])
+            self.assertEqual(item_count, len(source['items']))
+            settings, items = gfxlogic.preset_targets(preset_id)
+            self.assertEqual((vsync, True, '2'),
+                             (settings['vsync'], settings['show_fps'], settings['gpu_readbacks']))
+            self.assertEqual((fps, far_clip, linear),
+                             (items['menu:fps_limit'], items['menu:far_clip'], items['TLG_READBACK_LINEAR']))
+            self.assertEqual(preset_id, gfxlogic.matching_preset(settings, items))
 
     def test_current_preset_is_the_maintainers_setup_and_plain_presets_leave_its_keys_alone(self):
         import infamous_run
