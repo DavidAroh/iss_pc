@@ -1313,7 +1313,7 @@ const GraphicsPipeline* PipelineCache::GetGraphicsPipeline(const DrawIndirectPar
     if (TlgPerf::Enabled() && !graphics_pipelines.contains(sel.graphics_key)) {
         TlgPerf::Event e; e.kind = TlgPerf::Kind::PipelineRequest;
         e.object = std::hash<GraphicsPipelineKey>{}(sel.graphics_key);
-        e.a = 'g'; e.b = pending_graphics.contains(sel.graphics_key) ? 1 : lazy_programs ? 2 : 0;
+        e.a = 'g'; e.b = pending_graphics.contains(sel.graphics_key) ? 1 : 0;
         TlgPerf::Emit(e);
     }
     TlgRegion::NotePipeline('g', std::hash<GraphicsPipelineKey>{}(sel.graphics_key),
@@ -1457,7 +1457,7 @@ const ComputePipeline* PipelineCache::GetComputePipeline() {
     if (TlgPerf::Enabled() && !compute_pipelines.contains(compute_key)) {
         TlgPerf::Event e; e.kind = TlgPerf::Kind::PipelineRequest;
         e.object = std::hash<ComputePipelineKey>{}(compute_key);
-        e.a = 'c'; e.b = lazy_programs ? 2 : 0; // downstream cache state otherwise unknown
+        e.a = 'c'; e.b = 0; // Per-request cache provenance is unknown; ShaderLoad records actual loads.
         TlgPerf::Emit(e);
     }
     TlgRegion::NotePipeline('c', std::hash<ComputePipelineKey>{}(compute_key),

@@ -15,3 +15,13 @@ Conflitos resolvidos preservando os diagnósticos de performance da main e as mu
 4. Testar VSync e redimensionamento; não instalar atualização pelo launcher durante este teste da branch.
 
 Compilação, testes locais e resultados de gameplay são registrados em `~/decomp/iss_pr227_review/` e nas docs de estado do workspace. O usuário faz a validação visual; nenhum resultado de gameplay é presumido.
+
+## Validação local em 19/10/2026
+
+Build completo Linux com `ISS_LTO=OFF ISS_PGO=off` passou, assim como a suíte C de `build.sh --test-only`, os executáveis `recompiler-fixes-test` (padrões e LDS/WQM desligados), `barrier-merge-test`, `readback-queue-test` e `async-pipeline-cache-test` na RTX2060. Source Qt `--selftest` passou. Python: 601 testes, 84 ignorados e dois erros antigos de importação nos testes de GoW3 (`tlg_launcher_win`, `tlg_assets` ausentes), sem outras falhas. Os arquivos antigos não foram removidos.
+
+O merge textual deixou duas referências ao campo removido `lazy_programs` nos diagnósticos. Corrigidas mantendo eventos de pedidos e cargas reais do cache. Os binários foram compilados/testados com esse ajuste antes do commit final; o identificador do build pode mostrar o commit de integração com `+dirty`.
+
+### Limite da hipótese de ballot
+
+Conferido no backend desta branch: `EmitLoadSharedU64` já calcula o índice com `offset >> 3`. A nova máscara explícita `offset & ~7u` não muda esse índice. O teste novo do PR verifica a forma do IR, não uma diferença no SPIR-V emitido. Manter a mudança na branch permite testar o conjunto solicitado, mas este trecho sozinho não comprova uma correção de piscar. Há outras mudanças no PR que podem alterar a imagem/desempenho; a validação é do usuário jogando.
