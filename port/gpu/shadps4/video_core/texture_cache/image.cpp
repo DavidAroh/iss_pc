@@ -4,6 +4,7 @@
 #include "video_core/amdgpu/tlg_amd_1d.h"
 #include "tlg_toggles.h"
 #include <atomic>
+#include <cstdio>
 #include <cstdlib>
 #include <mutex>
 #include <ranges>
@@ -25,6 +26,89 @@ using namespace Vulkan;
 Common::IncrementalIdProvider<u64> Image::global_image_uid{};
 
 namespace {
+// tlg: RX 580 / Polaris crash (amdvlk64.dll+0xebbbb, issues #31/#49/#81/#99/#103). Two early
+// experiments, both switchable and neither shown to be the cause (the crash stayed with both):
+//  * TLG_EXPLICIT_RANGE (default on, 0 = old behaviour): full-image barriers carry the real
+//    level and layer counts instead of VK_REMAINING_MIP_LEVELS / VK_REMAINING_ARRAY_LAYERS.
+//    Identical by the spec (base 0).
+//  * TLG_BARRIER_SPLIT=1 (default off): one barrier per mip level instead of one for all;
+//    =2: one barrier per mip level and per layer.
+bool ExplicitBarrierRange() {
+    static const bool on = [] {
+        const char* env = std::getenv("TLG_EXPLICIT_RANGE");
+        const bool enabled = !(env && env[0] == '0');
+        if (enabled) {
+            std::printf("GPU: explicit barrier ranges (TLG_EXPLICIT_RANGE=0 keeps VK_REMAINING_*)\n");
+        }
+        return enabled;
+    }();
+    return on;
+}
+
+// 0 = one barrier for the whole image, 1 = one per mip level, 2 = one per mip level and layer.
+int BarrierSplitMode() {
+    static const int mode = [] {
+        const char* env = std::getenv("TLG_BARRIER_SPLIT");
+        const int value = (env && env[0] >= '1' && env[0] <= '2') ? env[0] - '0' : 0;
+        if (value != 0) {
+            std::printf("GPU: split full-image barriers, mode %d (TLG_BARRIER_SPLIT)\n", value);
+        }
+        return value;
+    }();
+    return mode;
+}
+
+// tlg: RX 580 / Polaris crash (amdvlk64.dll+0xebbbb): the logs show one flush of 9217 barriers
+// (1536 layers x 6 mips of ONE image, one barrier per subresource, all with the same layouts and
+// access masks) right before the AMD Windows driver faults. Neighbouring subresources with an
+// identical transition are one barrier by the spec; this folds runs of layers first, then runs of
+// mips, so the 9216 become 1. TLG_BARRIER_MERGE=0 keeps the old one-per-subresource barriers.
+bool MergeBarriersEnabled() {
+    static const bool on = [] {
+        const char* env = std::getenv("TLG_BARRIER_MERGE");
+        const bool enabled = !(env && env[0] == '0');
+        if (enabled) {
+            std::printf("GPU: merging adjacent subresource barriers (TLG_BARRIER_MERGE=0 keeps "
+                        "one per subresource)\n");
+        }
+        return enabled;
+    }();
+    return on;
+}
+
+template <typename Container>
+void MergeAdjacentBarriers(Container& barriers, size_t first) {
+    if (barriers.size() < first + 2) {
+        return;
+    }
+    size_t out = first;
+    for (size_t i = first + 1; i < barriers.size(); ++i) {
+        auto& prev = barriers[out];
+        const auto cur = barriers[i];
+        auto& pr = prev.subresourceRange;
+        const auto& cr = cur.subresourceRange;
+        const bool same_transition =
+            prev.image == cur.image && pr.aspectMask == cr.aspectMask &&
+            prev.srcStageMask == cur.srcStageMask && prev.srcAccessMask == cur.srcAccessMask &&
+            prev.dstStageMask == cur.dstStageMask && prev.dstAccessMask == cur.dstAccessMask &&
+            prev.oldLayout == cur.oldLayout && prev.newLayout == cur.newLayout &&
+            prev.srcQueueFamilyIndex == cur.srcQueueFamilyIndex &&
+            prev.dstQueueFamilyIndex == cur.dstQueueFamilyIndex;
+        if (same_transition && pr.baseMipLevel == cr.baseMipLevel &&
+            pr.levelCount == cr.levelCount && pr.baseArrayLayer + pr.layerCount == cr.baseArrayLayer) {
+            pr.layerCount += cr.layerCount; // next layers of the same mips
+            continue;
+        }
+        if (same_transition && pr.baseArrayLayer == cr.baseArrayLayer &&
+            pr.layerCount == cr.layerCount && pr.baseMipLevel + pr.levelCount == cr.baseMipLevel) {
+            pr.levelCount += cr.levelCount; // next mips of the same layers
+            continue;
+        }
+        barriers[++out] = cur;
+    }
+    barriers.erase(barriers.begin() + (out + 1), barriers.end());
+}
+
 /// tlg: how many times the driver has refused this format/type/flags/usage combination. The
 /// first, tenth, hundredth... are logged, so the magnitude stays visible without one line per
 /// streamed image.
@@ -292,16 +376,21 @@ Image::Image(const Vulkan::Instance& instance, Vulkan::Runtime& runtime_,
     backing = &backing_images.emplace_back();
     backing->num_samples = info.num_samples;
     backing->image = UniqueImage{instance.GetDevice(), instance.GetAllocator()};
-    if (host_1d) {
-        TLG_IMG_TRACE("create 1D image %ux%u layers %u mips %u %s flags %s usage %s at %#llx\n",
+    // tlg: every height-1 image is traced, whatever its Vulkan type: the crash image was a
+    // height-1 image that the old 1D-only creation trace never showed.
+    const bool trace_thin = host_1d || (!info.props.is_host_2d && info.size.height == 1);
+    if (trace_thin) {
+        TLG_IMG_TRACE("create thin image %ux%u layers %u mips %u %s vk type %s guest type %u "
+                      "tile %u flags %s usage %s at %#llx\n",
                       info.size.width, info.size.height, u32(info.resources.layers),
                       u32(info.resources.levels), vk::to_string(supported_format).c_str(),
-                      vk::to_string(flags).c_str(), vk::to_string(usage_flags).c_str(),
-                      (unsigned long long)info.guest_address);
+                      vk::to_string(image_ci.imageType).c_str(), u32(info.type),
+                      u32(info.tile_mode), vk::to_string(flags).c_str(),
+                      vk::to_string(usage_flags).c_str(), (unsigned long long)info.guest_address);
     }
     backing->image.Create(image_ci);
-    if (host_1d) {
-        TLG_IMG_TRACE("created 1D image %p\n", (void*)VkImage(backing->image.image));
+    if (trace_thin) {
+        TLG_IMG_TRACE("created thin image %p\n", (void*)VkImage(backing->image.image));
     }
 
     Vulkan::SetObjectName(instance.GetDevice(), GetImage(),
@@ -355,6 +444,7 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
     }
     memo.valid = false;
     if (needs_partial_transition || partially_transited) {
+        const size_t first_new_barrier = barriers.size();
         if (!partially_transited) {
             subresource_states.resize(info.resources.levels * info.resources.layers);
             std::fill(subresource_states.begin(), subresource_states.end(), last_state);
@@ -412,6 +502,12 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
             }
         }
 
+        if (MergeBarriersEnabled()) {
+            // First pass folds layers within a mip, second folds mips with equal layer ranges.
+            MergeAdjacentBarriers(barriers, first_new_barrier);
+            MergeAdjacentBarriers(barriers, first_new_barrier);
+        }
+
         if (!needs_partial_transition) {
             subresource_states.clear();
         } else if (!(dst_mask & memo_write_flags)) {
@@ -426,24 +522,39 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
             return;
         }
 
-        barriers.emplace_back(vk::ImageMemoryBarrier2{
-            .srcStageMask = last_state.pl_stage,
-            .srcAccessMask = last_state.access_mask,
-            .dstStageMask = dst_stage,
-            .dstAccessMask = dst_mask,
-            .oldLayout = last_state.layout,
-            .newLayout = dst_layout,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = GetImage(),
-            .subresourceRange{
-                .aspectMask = aspect_mask,
-                .baseMipLevel = 0,
-                .levelCount = VK_REMAINING_MIP_LEVELS,
-                .baseArrayLayer = 0,
-                .layerCount = VK_REMAINING_ARRAY_LAYERS,
-            },
-        });
+        // tlg: see ExplicitBarrierRange / BarrierSplitMode above.
+        const u32 total_levels = static_cast<u32>(info.resources.levels);
+        const u32 total_layers = static_cast<u32>(info.resources.layers);
+        const bool explicit_range = ExplicitBarrierRange() && total_levels > 0 && total_layers > 0;
+        const u32 level_count = explicit_range ? total_levels : VK_REMAINING_MIP_LEVELS;
+        const u32 layer_count = explicit_range ? total_layers : VK_REMAINING_ARRAY_LAYERS;
+        const int split_mode = explicit_range ? BarrierSplitMode() : 0;
+        const bool split_mips = split_mode >= 1 && total_levels > 1;
+        const bool split_layers = split_mode >= 2 && total_layers > 1;
+        const u32 mip_barriers = split_mips ? total_levels : 1;
+        const u32 layer_barriers = split_layers ? total_layers : 1;
+        for (u32 level = 0; level < mip_barriers; ++level) {
+            for (u32 layer = 0; layer < layer_barriers; ++layer) {
+                barriers.emplace_back(vk::ImageMemoryBarrier2{
+                    .srcStageMask = last_state.pl_stage,
+                    .srcAccessMask = last_state.access_mask,
+                    .dstStageMask = dst_stage,
+                    .dstAccessMask = dst_mask,
+                    .oldLayout = last_state.layout,
+                    .newLayout = dst_layout,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = GetImage(),
+                    .subresourceRange{
+                        .aspectMask = aspect_mask,
+                        .baseMipLevel = split_mips ? level : 0,
+                        .levelCount = split_mips ? 1 : level_count,
+                        .baseArrayLayer = split_layers ? layer : 0,
+                        .layerCount = split_layers ? 1 : layer_count,
+                    },
+                });
+            }
+        }
     }
 
     last_state.layout = dst_layout;
