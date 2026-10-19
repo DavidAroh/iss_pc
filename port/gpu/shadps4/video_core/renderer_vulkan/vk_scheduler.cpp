@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#ifndef _WIN32
+#include <pthread.h> // tlg: the recording thread's CPU clock (frame stats)
+#endif
 #include <unordered_map>
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -28,6 +31,14 @@
 namespace Vulkan {
 
 std::mutex Scheduler::submit_mutex;
+
+// tlg: statistics the frame stats printer reads (driver.cpp declares these). Defined here so
+// that no header shared with the shader cache changes.
+/// CPU clock id (Linux) / thread id (Windows) of the Vulkan recording thread.
+std::atomic<int> g_tlg_recorder_cpu_clock{-1};
+std::atomic<u32> g_tlg_recorder_cpu_tid{0};
+/// Time the recording thread spent spinning for the next chunk before it slept.
+std::atomic<u64> g_tlg_recorder_spin_ns{0};
 
 Scheduler::Scheduler(const Instance& instance, bool threaded_recording)
     : instance{instance}, work_semaphore{instance}, command_pool{instance, &work_semaphore} {
@@ -65,6 +76,18 @@ bool Scheduler::FullBarriers() {
         if (on) {
             // In last_run.log whatever the GPU log level, so a tester's log shows the mode.
             std::printf("GPU: full barriers on (TLG_FULL_BARRIERS=1)\n");
+        }
+        return on;
+    }();
+    return enabled;
+}
+
+bool Scheduler::SplitSubmitLock() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("TLG_SPLIT_SUBMIT_LOCK");
+        const bool on = env && env[0] == '1';
+        if (on) {
+            std::printf("GPU: split submit lock on (TLG_SPLIT_SUBMIT_LOCK=1)\n");
         }
         return on;
     }();
@@ -326,18 +349,42 @@ void Scheduler::SyncRecording() {
 
 void Scheduler::RecorderThread(std::stop_token stoken) {
     Common::SetCurrentThreadName("tlg:VkRecorder");
+    // tlg: this thread's CPU clock (frame stats), as the GPU command thread does. The first
+    // recorder to start keeps the slot (the draw scheduler's; a presenter scheduler records
+    // much less).
+    {
+#ifndef _WIN32
+        int expected = -1;
+        if (clockid_t clock; pthread_getcpuclockid(pthread_self(), &clock) == 0) {
+            g_tlg_recorder_cpu_clock.compare_exchange_strong(expected, static_cast<int>(clock));
+        }
+#else
+        u32 expected = 0;
+        g_tlg_recorder_cpu_tid.compare_exchange_strong(expected,
+                                                       static_cast<u32>(GetCurrentThreadId()));
+#endif
+    }
     while (true) {
         // Spin briefly before sleeping: the next chunk usually follows within microseconds,
         // and a sleeping recorder costs the GPU thread a wake-up syscall per kick. With few
-        // hardware threads (Steam Deck: 8) the spin would take time from guest threads.
+        // cores (Steam Deck: 8 threads) the spin would take time from guest threads;
+        // TLG_PHYS_CORES=1 counts physical cores here.
         static const auto spin_time = std::chrono::microseconds(
-            TlgThreads::Available() >= 12 ? 200 : 20);
+            TlgThreads::SizingCount() >= 12 ? 200 : 20);
         const auto spin_until = std::chrono::steady_clock::now() + spin_time;
+        const auto spin_start = std::chrono::steady_clock::now();
         for (u32 spins = 1; queued_chunks.load(std::memory_order_acquire) == 0; ++spins) {
             __builtin_ia32_pause();
             // The clock is read every 256 pauses, not per iteration.
             if (!(spins & 255) &&
                 (stoken.stop_requested() || std::chrono::steady_clock::now() >= spin_until)) {
+                // tlg: the spin found nothing: CPU taken from the game's threads. Reported as
+                // idle in the frame stats, not as work.
+                g_tlg_recorder_spin_ns.fetch_add(
+                    static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                         std::chrono::steady_clock::now() - spin_start)
+                                         .count()),
+                    std::memory_order_relaxed);
                 break;
             }
         }
@@ -474,13 +521,19 @@ void Scheduler::AllocateWorkerCommandBuffers() {
 }
 
 void Scheduler::SubmitExecution(SubmitInfo& info) {
-    std::scoped_lock lk{submit_mutex};
+    // tlg: TLG_SPLIT_SUBMIT_LOCK=1 serializes only this scheduler's submissions (its record
+    // chunks, command buffer and tick) and takes the queue lock just for the queue calls, so
+    // a present on another thread no longer waits out this scheduler's recorder drain and
+    // host copies below.
+    const bool split = SplitSubmitLock();
+    std::unique_lock lk{split ? execution_mutex : submit_mutex};
     const u64 signal_value = work_semaphore.NextTick();
     work_since_submit.store(0, std::memory_order_relaxed);
 
 #if TRACY_GPU_ENABLED
     auto* profiler_ctx = instance.GetProfilerContext();
     if (profiler_ctx) {
+        const auto queue_lock = LockQueueInSubmit(); // the profiler context is shared
         profiler_scope->~VkCtxScope();
         TracyVkCollect(profiler_ctx, current_cmdbuf);
     }
@@ -527,11 +580,18 @@ void Scheduler::SubmitExecution(SubmitInfo& info) {
     };
 
     ImGui::Core::TextureManager::Submit();
-    auto submit_result = instance.GetGraphicsQueue().submit(submit_info, info.fence);
+    const auto submit_result = [&] {
+        const auto queue_lock = LockQueueInSubmit();
+        return instance.GetGraphicsQueue().submit(submit_info, info.fence);
+    }();
     ASSERT_MSG(submit_result != vk::Result::eErrorDeviceLost, "Device lost during submit");
 
     work_semaphore.Refresh();
     AllocateWorkerCommandBuffers();
+    if (split) {
+        // tlg: pending ops have their own lock, and one may submit again.
+        lk.unlock();
+    }
 
     // Apply pending operations
     PopPendingOperations();

@@ -61,11 +61,26 @@ Item {
                         Text { id: statusText; width: versions.width - 14; text: Updates.statusText; wrapMode: Text.WordWrap; color: Theme.text
                                font.family: Theme.fontText; font.pixelSize: 15; font.weight: Font.DemiBold }
                     }
-                    Row {
-                        spacing: 10
-                        GhostButton { tone: "primary"; accent: Theme.warn; text: Theme.tr("upd_check"); enabled: !Updates.checking; onClicked: Updates.check() }
+                    Column {
+                        visible: Updates.busy
+                        width: versions.width; spacing: 6
+                        Rectangle {
+                            width: parent.width; height: 6; radius: 3; color: Theme.ghostLine
+                            Rectangle { width: parent.width * Math.max(0, Math.min(1, Updates.progress)); height: parent.height; radius: 3; color: Theme.warn }
+                        }
+                        Text { text: Updates.progressText; color: Theme.textDim; font.family: Theme.fontText; font.pixelSize: 12 }
+                    }
+                    Flow {
+                        width: versions.width; spacing: 10
+                        GhostButton { tone: "primary"; accent: Theme.warn; text: Theme.tr("upd_check"); enabled: !Updates.checking && !Updates.busy; onClicked: Updates.check() }
+                        GhostButton { visible: Updates.packaged && !Updates.canRestart; accent: Theme.warn; text: Theme.tr("upd_install")
+                                      enabled: Updates.canInstall; onClicked: Updates.install() }
+                        GhostButton { visible: Updates.canCancel; text: Theme.tr("upd_cancel"); onClicked: Updates.cancelDownload() }
+                        GhostButton { visible: Updates.canRestart; tone: "primary"; accent: Theme.warn; text: Theme.tr("upd_restart"); onClicked: Updates.restart() }
                         GhostButton { text: Theme.tr("upd_download"); enabled: Updates.canDownload; onClicked: Updates.download() }
                     }
+                    Text { visible: Updates.installHint !== ""; width: versions.width; text: Updates.installHint; wrapMode: Text.WordWrap
+                           color: Theme.textDim; font.family: Theme.fontText; font.pixelSize: 12 }
                 }
             }
 
@@ -106,4 +121,6 @@ Item {
             Item { width: 1; height: 30 }
         }
     }
+
+    ConfirmCard { anchors.fill: parent; target: Updates }
 }
