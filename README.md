@@ -41,7 +41,8 @@ Por **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) 
   <a href="https://github.com/Playdbunny"><img src="https://avatars.githubusercontent.com/u/70190491?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
   <a href="https://github.com/EdouardSence"><img src="https://avatars.githubusercontent.com/u/103503538?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
   <a href="https://github.com/HayatoG/iss_pc/graphs/contributors"><img src="https://github.com/identicons/guilherme-oliveira.png" width="72" alt="Avatar de contribuidor"></a>&nbsp;&nbsp;
-  <a href="https://github.com/batuhankiskac"><img src="https://github.com/batuhankiskac.png" width="72" alt="Foto de perfil de contribuidor"></a>
+  <a href="https://github.com/batuhankiskac"><img src="https://github.com/batuhankiskac.png" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
+  <a href="https://github.com/sapoguruoficial-cmd"><img src="https://github.com/sapoguruoficial-cmd.png" width="72" alt="Foto de perfil de contribuidor"></a>
 </p>
 
 ## Novidades
