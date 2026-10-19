@@ -289,7 +289,11 @@ def apply(transaction, wait_pid=0, after_replace=None):
                 raise InstallError('conflict', row['path'])
         data['status'] = 'applying'
         _json(transaction, data)
-        _json(Path(data['target']) / STATE, {'transaction': str(transaction)})
+        # Expected hashes survive the journal: an interrupted update can be reconciled without it.
+        _json(Path(data['target']) / STATE, {
+            'transaction': str(transaction), 'target': data['target'], 'protected': data.get('protected', []),
+            'operations': [{key: row[key] for key in ('path', 'before', 'after', 'size')}
+                           for row in data['operations']]})
         try:
             for index, row in enumerate(data['operations']):
                 dest = _path(data['target'], row['path'], data.get('protected', ()), allow_manifest=True)
@@ -330,6 +334,28 @@ def recover(transaction, wait_pid=0):
     return 0
 
 
+def _settle_interrupted(target, state, record):
+    """Interrupted update whose journal is gone: consistent only if every managed file is all old or all new."""
+    if Path(record.get('target', '')).resolve() != Path(target).resolve():
+        raise InstallError('archive', 'wrong recovery destination')
+    old_only = new_only = None
+    for row in record['operations']:
+        path = _path(target, row['path'], record.get('protected', ()), allow_manifest=True)
+        if path.exists() and not path.is_file():
+            raise InstallError('recovery', row['path'])
+        current = _hash(path) if path.is_file() else None
+        is_old, is_new = current == row['before'], current == row['after']
+        if not (is_old or is_new):
+            raise InstallError('recovery', row['path'])
+        if is_old and not is_new:
+            old_only = old_only or row['path']
+        if is_new and not is_old:
+            new_only = new_only or row['path']
+    if old_only and new_only:  # mixture: keep the state file as evidence for the reinstall
+        raise InstallError('recovery', f'mixed versions: {old_only} is old, {new_only} is new')
+    state.unlink()
+
+
 def pending(target):
     state = Path(target) / STATE
     if not state.is_file():
@@ -337,6 +363,9 @@ def pending(target):
     record = _read(state)
     transaction = Path(record['transaction'])
     if not transaction.exists():
+        if 'completed' not in record and record.get('operations'):
+            _settle_interrupted(target, state, record)
+            return None
         data = record.get('completed', {})
         status = data.get('status')
         if (status not in ('installed', 'confirmed', 'rolled_back')

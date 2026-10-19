@@ -197,6 +197,57 @@ class InstallTests(unittest.TestCase):
             ui.pending(self.target)
         self.assertTrue((self.target / ui.STATE).exists())
 
+    def test_interrupted_state_records_operations_before_first_replacement(self):
+        tx = self.prepare()
+        seen = []
+        def capture(index):
+            seen.append(json.loads((self.target / ui.STATE).read_text(encoding='utf-8')))
+            raise SystemExit(9)
+        with self.assertRaises(SystemExit):
+            ui.apply(tx, after_replace=capture)
+        journal = json.loads(tx.read_text(encoding='utf-8'))['operations']
+        self.assertEqual(seen[0]['operations'], [{key: row[key] for key in ('path', 'before', 'after', 'size')}
+                                                 for row in journal])
+        self.assertEqual(seen[0]['target'], str(self.target.resolve()))
+        self.assertIn('transaction', seen[0])
+
+    def test_interrupted_update_without_journal_before_any_replacement_is_old_version(self):
+        tx = self.prepare()
+        with mock.patch.object(ui, '_copy', side_effect=SystemExit(9)):  # first call backs up the first file
+            with self.assertRaises(SystemExit):
+                ui.apply(tx)
+        self.assertTrue((self.target / ui.STATE).exists())
+        shutil.rmtree(tx.parent)
+        self.assertIsNone(ui.pending(self.target))
+        self.assertFalse((self.target / ui.STATE).exists())
+        self.assertEqual((self.target / 'launcher.exe').read_text(), 'old')
+        self.assertEqual((self.target / 'out/runtime.dll').read_text(), 'old')
+        self.assert_personal()
+
+    def test_interrupted_update_without_journal_after_all_replacements_is_new_version(self):
+        tx = self.prepare()
+        last = len(json.loads(tx.read_text(encoding='utf-8'))['operations']) - 1
+        with self.assertRaises(SystemExit):  # only the final state write is lost
+            ui.apply(tx, after_replace=lambda index: sys.exit(9) if index == last else None)
+        shutil.rmtree(tx.parent)
+        self.assertIsNone(ui.pending(self.target))
+        self.assertFalse((self.target / ui.STATE).exists())
+        self.assertEqual((self.target / 'launcher.exe').read_text(), 'new')
+        self.assertEqual((self.target / 'out/runtime.dll').read_text(), 'new')
+        self.assert_personal()
+
+    def test_interrupted_update_without_journal_mixed_versions_keeps_state_file(self):
+        tx = self.prepare()
+        before_manifest = len(json.loads(tx.read_text(encoding='utf-8'))['operations']) - 2
+        with self.assertRaises(SystemExit):  # content replaced, installed manifest still old
+            ui.apply(tx, after_replace=lambda index: sys.exit(9) if index == before_manifest else None)
+        shutil.rmtree(tx.parent)
+        with self.assertRaises(ui.InstallError) as error:
+            ui.pending(self.target)
+        self.assertEqual(error.exception.kind, 'recovery')
+        self.assertTrue((self.target / ui.STATE).exists())
+        self.assertEqual((self.target / 'launcher.exe').read_text(), 'new')
+
     def test_prune_preserves_other_installations_and_unfinished_updates(self):
         other = self.root / 'other'
         other.mkdir()

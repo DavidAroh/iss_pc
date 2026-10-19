@@ -14,15 +14,20 @@ permite restaurá-la até a confirmação da atualização seguinte.
 
 Se a pasta temporária de uma atualização concluída for apagada, o launcher
 confere os hashes registrados na instalação antes de descartar o estado antigo.
-A restauração deixa de estar disponível. Se a atualização foi interrompida ou
-os arquivos não conferem, o estado é preservado e a recuperação exige intervenção.
-Registros antigos sem evidência de conclusão também exigem intervenção.
+A restauração deixa de estar disponível. Uma atualização interrompida cuja pasta
+temporária foi apagada é reconciliada automaticamente quando todos os arquivos
+gerenciados estão na versão anterior ou todos na nova. Se houver mistura de versões,
+ou algum arquivo não bater com nenhuma das duas, o arquivo de estado é mantido e a
+recuperação exige reinstalar o pacote da release nesta mesma pasta, sem apagar
+`user/` nem os saves. Registros antigos sem evidência de conclusão também exigem
+intervenção.
 A limpeza automática só remove backups concluídos da mesma instalação.
 
 Linux mantém a instalação em pasta vizinha. Checkouts Git não recebem instalação
 no lugar pelo updater do Windows.
 
-Validação em 19/10/2026: 42 testes de updater, disco/recuperação e Qt passaram.
+Validação em 19/10/2026: 46 testes de updater, disco/recuperação e Qt passaram (42 antes da
+reconciliação de interrupção, mais 4 dela).
 Ainda falta validar a atualização completa com o auxiliar PyInstaller no Windows,
 incluindo manifesto produzido pelo empacotamento e arquivos em uso. Não houve
 teste de jogo nesta etapa.
@@ -41,11 +46,16 @@ next update is confirmed.
 
 If a completed update's temporary folder is deleted, recorded installed hashes
 must match before its stale recovery state is retired. Rollback is then
-unavailable. Interrupted updates, mismatching files and legacy state without
-completion evidence still require intervention. Automatic cleanup only removes
-completed backups belonging to this installation.
+unavailable. An interrupted update whose temporary folder was deleted is
+reconciled automatically when every managed file is either all old or all new.
+A mixture of versions, or a file matching neither, keeps the state file and needs
+a reinstall of the release package into this same folder from the release page,
+without deleting `user/` or the saves. Legacy state without completion evidence
+still requires intervention. Automatic cleanup only removes completed backups
+belonging to this installation.
 
 Linux retains installation into a sibling folder. Windows in-place updates refuse
-Git checkouts. On 2026-10-19, all 42 updater, disk recovery and Qt tests passed.
+Git checkouts. On 2026-10-19, all 46 updater, disk recovery and Qt tests passed (42 before the
+interrupted-update reconciliation, plus 4 for it).
 An end-to-end Windows PyInstaller update, packaging-generated manifest and locked
 files still need validation. No game was launched during this work.

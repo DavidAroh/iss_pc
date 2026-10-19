@@ -57,7 +57,18 @@ def main():
                 return 0
         except (update_install.InstallError, OSError) as error:
             import ctypes
-            ctypes.windll.user32.MessageBoxW(None, str(error), 'inFAMOUS — Launcher / Atualização', 0x10)
+            url = 'https://github.com/HayatoG/iss_pc/releases/latest'  # same value as qt/releases.py RELEASES_URL
+            if getattr(error, 'kind', '') == 'busy':   # another launcher window, or an update, holds the lock
+                text = ('Outra janela do launcher ou uma atualização está em andamento. Aguarde e tente de novo.\n\n'
+                        'Another launcher window or an update is in progress. Wait and try again.')
+            else:
+                text = ('Uma atualização anterior foi interrompida e não pode ser concluída automaticamente. '
+                        'Mantenha a pasta de instalação como está, não apague a pasta user/ nem os saves, '
+                        'e reinstale o pacote da release nesta mesma pasta:\n' + url + '\n\n'
+                        'A previous update was interrupted and cannot be completed automatically. '
+                        'Keep the install folder as it is, do not delete the user/ folder or your saves, '
+                        'and reinstall the release package into this same folder from the release page:\n' + url)
+            ctypes.windll.user32.MessageBoxW(None, f'{text}\n\n({error})', 'inFAMOUS — Launcher / Atualização', 0x10)
             return 1
     try:
         app = App()
