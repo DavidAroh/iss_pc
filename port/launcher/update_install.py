@@ -265,6 +265,13 @@ def _restore(transaction, data):
         _json(transaction, data)
     data['status'] = 'rolled_back'
     _json(transaction, data)
+    _record_state(transaction, data)
+
+
+def _record_state(transaction, data):
+    # Keep completion evidence with the installation, independently of staging.
+    _json(Path(data['target']) / STATE,
+          {'transaction': str(transaction), 'completed': data})
 
 
 def apply(transaction, wait_pid=0, after_replace=None):
@@ -306,6 +313,7 @@ def apply(transaction, wait_pid=0, after_replace=None):
                 _json(transaction, data)
             data['status'] = 'installed'
             _json(transaction, data)
+            _record_state(transaction, data)
         except Exception as error:
             _restore(transaction, data)
             raise InstallError(getattr(error, 'kind', 'write'), str(error)) from error
@@ -326,7 +334,25 @@ def pending(target):
     state = Path(target) / STATE
     if not state.is_file():
         return None
-    transaction, data = _load(_read(state)['transaction'])
+    record = _read(state)
+    transaction = Path(record['transaction'])
+    if not transaction.exists():
+        data = record.get('completed', {})
+        status = data.get('status')
+        if (status not in ('installed', 'confirmed', 'rolled_back')
+                or Path(data.get('target', '')).resolve() != Path(target).resolve()
+                or not data.get('operations')):
+            raise InstallError('recovery', 'update journal missing; completion cannot be verified')
+        # Losing rollback files after a completed update must not brick the launcher.
+        # Verify the installed files before retiring its now unusable recovery state.
+        for row in data['operations']:
+            path = _path(target, row['path'], data.get('protected', ()), allow_manifest=True)
+            expected = row['before'] if status == 'rolled_back' else row['after']
+            if (path.exists() and not path.is_file()) or (_hash(path) if path.is_file() else None) != expected:
+                raise InstallError('recovery', row['path'])
+        state.unlink()
+        return None
+    transaction, data = _load(transaction)
     if Path(data['target']).resolve() != Path(target).resolve():
         raise InstallError('archive', 'wrong recovery destination')
     return transaction, data
@@ -338,14 +364,24 @@ def confirm(target):
         transaction, data = state
         data['status'] = 'confirmed'
         _json(transaction, data)
+        _record_state(transaction, data)
         _prune(transaction.parent, target)
 
 
 def _prune(keep, target):
     """Keeps only the newest confirmed update's folder: its backup restores the version before it."""
     for folder in Path(target).parent.glob('.iss-update-*'):
-        if (folder.is_dir() and not folder.is_symlink() and (folder / 'transaction.json').is_file()
-                and folder.resolve() != Path(keep).resolve()):
+        if (not folder.is_dir() or folder.is_symlink()
+                or getattr(folder, 'is_junction', lambda: False)()
+                or not (folder / 'transaction.json').is_file()
+                or folder.resolve() == Path(keep).resolve()):
+            continue
+        try:
+            _, data = _load(folder / 'transaction.json')
+        except InstallError:
+            continue
+        if (Path(data['target']).resolve() == Path(target).resolve()
+                and data['status'] in ('confirmed', 'rolled_back')):
             shutil.rmtree(folder, ignore_errors=True)
 
 

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Disk-level update/rollback tests; never use the player's installation."""
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -159,6 +160,59 @@ class InstallTests(unittest.TestCase):
         after = {p: ui._hash(p) for p in (*game.rglob('*'), *data.rglob('*')) if p.is_file()}
         self.assertEqual(before, after)
         self.assertEqual((self.target / 'launcher.exe').read_text(), 'new')
+
+    def test_missing_completed_update_folder_does_not_block_startup(self):
+        for status in ('installed', 'confirmed', 'rolled_back'):
+            with self.subTest(status=status):
+                self.stage.mkdir(parents=True, exist_ok=True)
+                (self.stage / 'launcher.exe').write_text('new')
+                ui.write_manifest(self.stage, 'new')
+                tx = self.prepare()
+                ui.apply(tx)
+                if status == 'confirmed':
+                    ui.confirm(self.target)
+                elif status == 'rolled_back':
+                    ui.recover(tx)
+                shutil.rmtree(tx.parent)
+                self.assertIsNone(ui.pending(self.target))
+                self.assertFalse((self.target / ui.STATE).exists())
+                self.assert_personal()
+
+    def test_missing_interrupted_update_journal_is_not_treated_as_success(self):
+        tx = self.prepare()
+        with self.assertRaises(SystemExit):
+            ui.apply(tx, after_replace=lambda _: sys.exit(9))
+        shutil.rmtree(tx.parent)
+        with self.assertRaises(ui.InstallError) as error:
+            ui.pending(self.target)
+        self.assertEqual(error.exception.kind, 'recovery')
+        self.assertTrue((self.target / ui.STATE).exists())
+
+    def test_missing_completed_journal_requires_matching_installed_files(self):
+        tx = self.prepare()
+        ui.apply(tx)
+        shutil.rmtree(tx.parent)
+        (self.target / 'launcher.exe').write_text('damaged')
+        with self.assertRaises(ui.InstallError):
+            ui.pending(self.target)
+        self.assertTrue((self.target / ui.STATE).exists())
+
+    def test_prune_preserves_other_installations_and_unfinished_updates(self):
+        other = self.root / 'other'
+        other.mkdir()
+        (other / 'launcher.exe').write_text('old')
+        for name, target, confirm in (('other', other, True), ('unfinished', self.target, False),
+                                      ('old', self.target, True)):
+            stage = self.root / ('.iss-update-' + name) / 'payload'
+            shutil.copytree(self.stage, stage)
+            tx = ui.prepare(stage, target, 'new', exe_name='launcher.exe')
+            if confirm:
+                ui.apply(tx)
+                ui.confirm(target)
+        ui._prune(self.root / 'keep', self.target)
+        self.assertTrue((self.root / '.iss-update-other').is_dir())
+        self.assertTrue((self.root / '.iss-update-unfinished').is_dir())
+        self.assertFalse((self.root / '.iss-update-old').exists())
 
 
 if __name__ == '__main__':
