@@ -155,6 +155,14 @@ file(GLOB_RECURSE RECOMPILER CONFIGURE_DEPENDS shadps4/shader_recompiler/*.cpp)
 file(GLOB_RECURSE TLG_SHADER_KEY_SOURCES shadps4/shader_recompiler/*.cpp shadps4/shader_recompiler/*.h)
 list(APPEND TLG_SHADER_KEY_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/shadps4/video_core/amdgpu/resource.h
+    # tlg: the 1D/BC promotion predicates that resource.h and the SPIR-V image emitter read
+    # (IsBlock1D): their code changes which texels a shader samples, without changing the profile
+    # the cache compares.
+    ${CMAKE_CURRENT_SOURCE_DIR}/shadps4/video_core/amdgpu/tlg_block1d.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/shadps4/video_core/amdgpu/tlg_bc_tiny.h
+    # tlg: the graphics pipeline writes the host tessellation/discard SPIR-V into its serialized
+    # pipeline entry and decides when to emit it.
+    ${CMAKE_CURRENT_SOURCE_DIR}/shadps4/video_core/renderer_vulkan/vk_graphics_pipeline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shadps4/video_core/renderer_vulkan/vk_pipeline_cache.cpp)
 list(SORT TLG_SHADER_KEY_SOURCES)
 set(TLG_SHADER_KEY_DATA "")
@@ -514,5 +522,5 @@ add_executable(fsr4-bench EXCLUDE_FROM_ALL tools/fsr4_bench.cpp
 target_include_directories(fsr4-bench PRIVATE shadps4/video_core/renderer_vulkan/fsr411)
 target_link_libraries(fsr4-bench PRIVATE ffx-vulkan::fsr4-v07-vulkan ffx-vulkan::fsr4-v07-assets Vulkan::Vulkan)
 
-add_executable(cheat-hook-test ../tests/test_cheat_hook.cpp)
+add_executable(cheat-hook-test EXCLUDE_FROM_ALL ../tests/test_cheat_hook.cpp)
 target_compile_options(cheat-hook-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)

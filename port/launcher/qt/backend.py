@@ -162,6 +162,7 @@ class Backend(QObject):
         """probes: optional dict of callables replacing the slow/hardware ones (tests, screenshots)."""
         super().__init__()
         self.langChanged.connect(self.gameLanguageChanged)   # 'Automatic: <name>' follows the interface language
+        self.gameDirChanged.connect(self.gameLanguageChanged)   # the languages offered follow the game files
         self.settings = tlg_run.load_settings() if settings is None else settings
         self.t_ = translator or logic.Translator(self.settings)
         self.probes = probes or {}
@@ -648,15 +649,15 @@ class Backend(QObject):
         self.setFix(self._verbose_log_item().id, '1' if on else '0')
 
     # -- game language (voice and text; the interface language above is separate) ---------------
-    @Property('QVariantList', notify=langChanged)
+    @Property('QVariantList', notify=gameLanguageChanged)
     def gameLanguageOptions(self):
-        """'Automatic' first, then the six languages in the order of infamous_run.GAME_LANGUAGES."""
-        return [{'value': 'auto', 'label': self.t_('game_language_auto')}] + [
-            {'value': k, 'label': logic.GAME_LANGUAGE_NAMES.get(k, k)} for k in tlg_run.GAME_LANGUAGES]
+        """'Automatic' first, then the languages of infamous_run.game_language_choices (those the game files have)."""
+        return [{'value': k, 'label': self.t_('game_language_auto') if k == 'auto'
+                 else logic.GAME_LANGUAGE_NAMES.get(k, k)} for k in tlg_run.game_language_choices(self.settings)]
 
     @Property(int, notify=gameLanguageChanged)
     def gameLanguageIndex(self):
-        keys = ['auto'] + list(tlg_run.GAME_LANGUAGES)
+        keys = tlg_run.game_language_choices(self.settings)
         return keys.index(self.settings.get('game_language')) if self.settings.get('game_language') in keys else 0
 
     @Property(str, notify=gameLanguageChanged)

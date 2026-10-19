@@ -450,6 +450,11 @@ int main(void) {
     pristine = region + 2 * PAGE;
     jit = region + 3 * PAGE;
     __builtin_cpu_init();
+    /* run_state saves and compares YMM registers: a host without AVX cannot run the game either. */
+    if (!__builtin_cpu_supports("avx")) {
+        puts("isa-sse4a-test SKIP (host without AVX)");
+        return 0;
+    }
     native = __builtin_cpu_supports("sse4a");
 #ifndef __SSE4A__
     native = 0;

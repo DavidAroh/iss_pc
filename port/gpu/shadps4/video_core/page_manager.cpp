@@ -61,7 +61,19 @@ struct PageManager::Impl {
     static constexpr size_t NUM_ADDRESS_LOCKS = NUM_ADDRESS_PAGES / PAGES_PER_LOCK;
     inline static Vulkan::Rasterizer* rasterizer;
 
-    Impl() = default;
+    Impl() {
+#if defined(__linux__) && defined(MADV_FREE)
+        // tlg: cached_pages is one zero counter pair per 4 KiB of the 40-bit address space (512
+        // MiB) and is value-initialized, which commits all of it. Hand the untouched part back to
+        // the kernel: MADV_FREE only drops the pages under memory pressure, and a page dropped
+        // that way faults back in zeroed, which is exactly what the counters hold (they are all
+        // zero and any page written afterwards is never dropped). The locks cannot be freed this
+        // way (their mutexes are initialized to non-zero bytes).
+        const VAddr base = reinterpret_cast<VAddr>(cached_pages.data());
+        const VAddr first = Common::AlignUp(base, PM_PAGE_SIZE);
+        ::madvise(reinterpret_cast<void*>(first), sizeof(cached_pages) - (first - base), MADV_FREE);
+#endif
+    }
     virtual ~Impl() = default;
 
     virtual void OnMap(VAddr address, size_t size) {

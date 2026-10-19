@@ -82,7 +82,7 @@ Por **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) 
 | Launcher | ✅ Qt Quick (padrão) com o Tk de reserva; português e inglês |
 | Saves e dados | ✅ Pasta configurável, backup, exportar/importar |
 | Mouse (câmera e touchpad) | 🧪 Implementado, ainda pouco testado em jogo |
-| Correções experimentais (BP01–BP12) | 🧪 As de padrão ligado vêm no perfil Recomendado; BP06–BP09 (desligadas) são experimentais |
+| Correções experimentais (BP01–BP12) | 🧪 As de padrão ligado vêm no perfil Recomendado; BP07 e BP09 (desligadas) são experimentais; BP06 e BP08 ligadas por padrão |
 | Linux | ✅ Testado (Nobara/Fedora 44) |
 | Windows | 🧪 Testado por jogadores (a correção de luzes foi confirmada); crash conhecido em RX 580/Polaris, veja [Problemas conhecidos](#problemas-conhecidos) |
 
@@ -143,7 +143,7 @@ O launcher é o programa que abre ao executar **inFAMOUS Second Son**. O novo (Q
 
 **Idioma da interface:** português (Brasil) ou inglês (EUA), que o launcher escolhe pelo idioma do sistema e dá para trocar. Quando você escolhe um, o launcher passa a escolha ao jogo (`ISS_UI_LANG`) para o overlay.
 
-**Idioma do jogo:** a primeira opção é **Automático (idioma do sistema)**, o padrão, e depois vêm 6 idiomas: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) e Русский (8). Português vira pt-BR, espanhol vira es-LA, francês vira fr-CA, turco e russo ficam como são, e o resto vira inglês. A escolha vale na próxima partida e vira `ISS_LANGUAGE` (um `ISS_LANGUAGE` definido por você vence). **Só funciona se os arquivos do seu jogo tiverem o idioma:** turco e russo, por exemplo, só aparecem se o seu dump tiver esses idiomas. É separado do idioma da interface.
+**Idioma do jogo:** a primeira opção é **Automático (idioma do sistema)**, o padrão, e depois vêm os idiomas que o `sce_sys/playgo-chunk.dat` do seu dump marca, entre os 30 do PS4 (inglês dos EUA e do Reino Unido, português do Brasil e de Portugal, espanhol latino e da Espanha, francês e francês do Canadá, alemão, italiano, holandês, polonês, turco, russo, japonês, coreano, chinês e outros); sem esse arquivo (dumps por FTP) vêm os 6 do CUSA00223: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) e Русский (8). O automático segue o idioma e a região do sistema (es_ES vira espanhol da Espanha, es_MX vira latino, pt_PT vira português de Portugal) e, se o jogo não tiver esse idioma, usa a variante mais próxima (espanhol ↔ latino, português ↔ brasileiro...), senão o inglês. A escolha vale na próxima partida e vira `ISS_LANGUAGE` (um `ISS_LANGUAGE` definido por você vence). **Só funciona se os arquivos do seu jogo tiverem o idioma:** turco e russo, por exemplo, só aparecem se o seu dump tiver esses idiomas. É separado do idioma da interface.
 
 **Atualizações:** a tela **Atualizações** faz uma única consulta HTTPS à última release no GitHub (nada seu é enviado), mostra as notas no idioma da interface e o botão **Baixar** só abre a página da release. **Ela não baixa nem instala nada: um atualizador automático de verdade ainda não existe.** "Verificar ao abrir" vem desligado.
 
@@ -170,9 +170,9 @@ A tela **Correções** do launcher (e o botão **Correções experimentais…** 
 | BP03 | mantém o EXEC depois de um desvio divergente vazio | shadPS4 c34ca21f | ligado | reinicia, recompila shaders |
 | BP04 | recíproco/raiz/log sem clamp, como o hardware | shadPS4 #5346 | ligado | reinicia, recompila shaders |
 | BP05 | saturate trata NaN como a GPU (vira 0) | shadPS4 #5257 | ligado | reinicia, recompila shaders |
-| BP06 | reconvergência máxima nos shaders de compute | port nativo de Shadow of the Colossus | **desligado** (experimental) | reinicia, recompila shaders |
+| BP06 | reconvergência máxima nos shaders de compute | port nativo de Shadow of the Colossus | **ligado** | reinicia, recompila shaders |
 | BP07 | compilação assíncrona sem pular draws pequenos ou indiretos | bbport (bloodborne_pc) | **desligado** (experimental) | no jogo |
-| BP08 | guarda o cache de pipelines do driver entre partidas | Mrsuss, 0xCydral (bloodborne_pc) | **desligado** (experimental) | reinicia |
+| BP08 | guarda o cache de pipelines do driver entre partidas | Mrsuss, 0xCydral (bloodborne_pc) | **ligado** (desde 16/10) | reinicia |
 | BP09 | toda imagem 1D vira 2D de altura 1 | CTR | **desligado** (experimental) | reinicia, recompila shaders |
 | BP10 | barreiras para buffers de vértice, índice e indiretos | shadPS4 #5262 | ligado | no jogo |
 | BP11 | `firstInstance` contado uma vez nos draws indiretos | shadPS4 #5348 | ligado | reinicia, recompila shaders |
@@ -181,7 +181,7 @@ A tela **Correções** do launcher (e o botão **Correções experimentais…** 
 - **Como a release anterior:** `TLG_BACKPORTS=0` (ou o botão do launcher) desliga todas as BP que vêm ligadas, para comparar com a versão sem elas; um `TLG_BPnn` individual ainda vence. Na primeira abertura depois de atualizar, uma mensagem única explica isso. Se uma cena piorar, teste primeiro assim e depois ligue uma a uma.
 - **Voltar ao recomendado** apaga todas as suas escolhas. Só o que difere do padrão é gravado.
 - **Chaves de diagnóstico (A/B):** `ISS_WQM`, `ISS_LDS_SMALL`, `ISS_LDS_MULTI`, `ISS_LDS_READLANE`, `ISS_LANE_DIVERGENCE`, `ISS_RFL_ALL`, `ISS_BLOCK1D`, `ISS_BC_TINY`, `ISS_NO_MSAA`, `ISS_BACKGROUND_WARMUP`, `ISS_PIPELINE_BINARIES` (ainda derruba o jogo no driver NVIDIA 595) e o seletor de oclusão (`ISS_OCCLUSION_MODE`); `0` desliga, `1` liga. Servem para descobrir qual mudança causa um problema.
-- O BP08 (cache de pipelines do driver em disco) é experimental e vem desligado; o cache de pipelines em disco "de verdade" contra os engasgos ainda está no [roadmap](docs/ROADMAP.md).
+- O BP08 (cache de pipelines do driver em disco) vem ligado desde 16/10: a criação de pipelines fica rápida o bastante para nenhum desenho ser pulado (os flashes cinza de um quadro). O arquivo é salvo só quando há pipelines novos e não passa de 1 GB (`ISS_DRIVER_CACHE_MAX_MB`; apagar o arquivo recomeça). O resto do engasgo de shader está no [roadmap](docs/ROADMAP.md).
 - Tabela completa, com as chaves do `tlg.ini` e as opções do menu Insert: [`docs/EXPERIMENTAL_FIXES.md`](docs/EXPERIMENTAL_FIXES.md).
 
 ## Luzes e oclusão
@@ -350,6 +350,8 @@ cd port && ISS_LTO=OFF bash build.sh   # Linux: SDL3, Vulkan, FFmpeg, FreeType, 
 cd .. && ./infamous_launcher_qt.sh     # launcher Qt (precisa do PySide6); ./infamous_launcher.sh é o Tk; ./run_infamous.sh pelo terminal
 ```
 
+Um clone compila sem otimização guiada por perfil (PGO): o perfil (`port/pgo/*.gcda`) não está no repositório e os pacotes das releases também são compilados sem ele, então um build local e um pacote devem render igual. `ISS_PGO=generate` gera um binário instrumentado que grava o perfil enquanto você joga, e o build seguinte o usa.
+
 No Windows, o build roda no MSYS2 CLANG64 ([`port/packaging/windows/README.md`](port/packaging/windows/README.md)). O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) mostra o processo completo nas duas plataformas.
 
 ## Como funciona
@@ -443,7 +445,7 @@ The screenshots are at the top of this page.
 | Launcher | ✅ Qt Quick (default) with the Tk one as a fallback; Portuguese and English |
 | Saves and data | ✅ Configurable folder, backup, export/import |
 | Mouse (camera and touchpad) | 🧪 Implemented, not yet tested much in game |
-| Experimental fixes (BP01–BP12) | 🧪 The ones on by default come in the Recommended profile; BP06–BP09 (off) are experimental |
+| Experimental fixes (BP01–BP12) | 🧪 The ones on by default come in the Recommended profile; BP07 and BP09 (off) are experimental; BP06 and BP08 are on by default |
 | Linux | ✅ Tested (Nobara/Fedora 44) |
 | Windows | 🧪 Tested by players (the lights fix was confirmed); known crash on RX 580/Polaris, see [Known problems](#known-problems) |
 
@@ -504,7 +506,7 @@ The launcher is the program that opens when you run **inFAMOUS Second Son**. The
 
 **Interface language:** Portuguese (Brazil) or English (US), which the launcher picks from the system language and you can change. When you pick one, the launcher passes it to the game (`ISS_UI_LANG`) for the overlay.
 
-**Game language:** the first option is **Automatic (system language)**, the default, followed by 6 languages: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) and Русский (8). Portuguese becomes pt-BR, Spanish becomes es-LA, French becomes fr-CA, Turkish and Russian stay as they are, and anything else becomes English. The choice applies on the next start and becomes `ISS_LANGUAGE` (an `ISS_LANGUAGE` you set yourself wins). **It only works if your game files have that language:** Turkish and Russian, for example, only show up if your dump has them. It is separate from the interface language.
+**Game language:** the first option is **Automatic (system language)**, the default, followed by the languages your dump's `sce_sys/playgo-chunk.dat` lists, out of the PS4's 30 (US and UK English, Brazilian and European Portuguese, Latin American and Spain Spanish, French and Canadian French, German, Italian, Dutch, Polish, Turkish, Russian, Japanese, Korean, Chinese and more); without that file (FTP dumps) the 6 of CUSA00223: English (1), Português (Brasil) (17), Español (Latinoamérica) (20), Français (Canada) (22), Türkçe (19) and Русский (8). Automatic follows the system's language and region (es_ES is Spain Spanish, es_MX Latin American, pt_PT European Portuguese) and, when the game lacks that language, the closest variant (Spain/Latin American Spanish, European/Brazilian Portuguese...), else English. The choice applies on the next start and becomes `ISS_LANGUAGE` (an `ISS_LANGUAGE` you set yourself wins). **It only works if your game files have that language:** Turkish and Russian, for example, only show up if your dump has them. It is separate from the interface language.
 
 **Updates:** the **Updates** screen makes a single HTTPS query for the latest release on GitHub (nothing of yours is sent), shows the notes in the interface language, and the **Download** button only opens the release page. **It does not download or install anything: a real automatic updater does not exist yet.** "Check on open" is off by default.
 
@@ -531,9 +533,9 @@ The launcher's **Fixes** screen (and the **Experimental fixes…** button of the
 | BP03 | keeps EXEC after an empty divergent branch | shadPS4 c34ca21f | on | restarts, recompiles shaders |
 | BP04 | reciprocal/root/log without clamp, like the hardware | shadPS4 #5346 | on | restarts, recompiles shaders |
 | BP05 | saturate treats NaN like the GPU (becomes 0) | shadPS4 #5257 | on | restarts, recompiles shaders |
-| BP06 | maximal reconvergence in compute shaders | native Shadow of the Colossus port | **off** (experimental) | restarts, recompiles shaders |
+| BP06 | maximal reconvergence in compute shaders | native Shadow of the Colossus port | **on** | restarts, recompiles shaders |
 | BP07 | async compile never skips small or indirect draws | bbport (bloodborne_pc) | **off** (experimental) | in game |
-| BP08 | keeps the driver pipeline cache between sessions | Mrsuss, 0xCydral (bloodborne_pc) | **off** (experimental) | restarts |
+| BP08 | keeps the driver pipeline cache between sessions | Mrsuss, 0xCydral (bloodborne_pc) | **on** (since 2026-10-16) | restarts |
 | BP09 | every 1D image becomes 2D with height 1 | CTR | **off** (experimental) | restarts, recompiles shaders |
 | BP10 | barriers for vertex, index and indirect buffers | shadPS4 #5262 | on | in game |
 | BP11 | `firstInstance` counted once in indirect draws | shadPS4 #5348 | on | restarts, recompiles shaders |
@@ -542,7 +544,7 @@ The launcher's **Fixes** screen (and the **Experimental fixes…** button of the
 - **Like the previous release:** `TLG_BACKPORTS=0` (or the launcher button) turns off every BP that is on by default, to compare with the version without them; an individual `TLG_BPnn` still wins. On the first start after updating, a one-time message explains this. If a scene gets worse, test this way first, then turn them back on one by one.
 - **Back to recommended** clears all your choices. Only what differs from the default is written.
 - **Diagnostic (A/B) switches:** `ISS_WQM`, `ISS_LDS_SMALL`, `ISS_LDS_MULTI`, `ISS_LDS_READLANE`, `ISS_LANE_DIVERGENCE`, `ISS_RFL_ALL`, `ISS_BLOCK1D`, `ISS_BC_TINY`, `ISS_NO_MSAA`, `ISS_BACKGROUND_WARMUP`, `ISS_PIPELINE_BINARIES` (still crashes the game on the NVIDIA 595 driver) and the occlusion selector (`ISS_OCCLUSION_MODE`); `0` turns off, `1` turns on. They exist to find which change causes a problem.
-- BP08 (the on-disk driver pipeline cache) is experimental and off; a "real" on-disk pipeline cache against stutter is still on the [roadmap](docs/ROADMAP.md).
+- BP08 (the on-disk driver pipeline cache) is on since 2026-10-16: pipeline creation gets fast enough that no draw is skipped (the grey one-frame flashes). The file is saved only when there are new pipelines and never grows past 1 GB (`ISS_DRIVER_CACHE_MAX_MB`; deleting it starts over). The rest of the shader stutter is on the [roadmap](docs/ROADMAP.md).
 - Full table, with the `tlg.ini` keys and the Insert menu options: [`docs/EXPERIMENTAL_FIXES.md`](docs/EXPERIMENTAL_FIXES.md).
 
 ## Lights and occlusion
@@ -710,6 +712,8 @@ git clone --recursive https://github.com/HayatoG/iss_pc.git && cd iss_pc
 cd port && ISS_LTO=OFF bash build.sh   # Linux: SDL3, Vulkan, FFmpeg, FreeType, Boost, fmt, Zydis, glslang
 cd .. && ./infamous_launcher_qt.sh     # Qt launcher (needs PySide6); ./infamous_launcher.sh is the Tk one; ./run_infamous.sh from a terminal
 ```
+
+A clone builds without profile-guided optimization (PGO): the profile (`port/pgo/*.gcda`) is not in the tree, and the release packages are built without it as well, so a local build and a package should perform alike. `ISS_PGO=generate` builds an instrumented binary that writes the profile while you play, and the next build uses it.
 
 On Windows, the build runs in MSYS2 CLANG64 ([`port/packaging/windows/README.md`](port/packaging/windows/README.md)). The workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) shows the full process on both platforms.
 
