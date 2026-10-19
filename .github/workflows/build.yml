@@ -65,7 +65,15 @@ jobs:
           bash packaging/linux/build_deps.sh
       - name: Build
         id: build
-        run: TLG_LTO=ON TLG_PGO=off bash build.sh
+        run: |
+          # Keep compilation progress visible while build.sh captures Ninja's full log.
+          (while sleep 30; do
+            echo "Build running: $(date -u +%H:%M:%S) UTC"
+            tail -n 2 out/gpu-build.log 2>/dev/null || true
+          done) &
+          progress_pid=$!
+          trap 'kill "$progress_pid" 2>/dev/null || true' EXIT
+          TLG_LTO=ON TLG_PGO=off bash build.sh
       # The unit tests need no GPU, display or game file. Each test step runs even when an earlier
       # one failed (all failures show in one run); any failure fails the job before Package.
       - name: C tests
@@ -155,6 +163,13 @@ jobs:
           MSYS2_ROOT: ${{ runner.temp }}/msys64
         run: |
           export MSYS2_ROOT=$(cygpath -u "$MSYS2_ROOT")
+          # Keep compilation progress visible while build.sh captures Ninja's full log.
+          (while sleep 30; do
+            echo "Build running: $(date -u +%H:%M:%S) UTC"
+            tail -n 2 out/gpu-build.log 2>/dev/null || true
+          done) &
+          progress_pid=$!
+          trap 'kill "$progress_pid" 2>/dev/null || true' EXIT
           TLG_LTO=ON bash build.sh
       - name: Package
         env:
