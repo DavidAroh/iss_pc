@@ -15,6 +15,7 @@
 #include "video_core/renderer_vulkan/vk_runtime.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "video_core/texture_cache/blit_helper.h"
+#include "video_core/texture_cache/barrier_merge.h"
 #include "video_core/texture_cache/image.h"
 
 #include <vk_mem_alloc.h>
@@ -58,55 +59,16 @@ int BarrierSplitMode() {
     return mode;
 }
 
-// tlg: RX 580 / Polaris crash (amdvlk64.dll+0xebbbb): the logs show one flush of 9217 barriers
-// (1536 layers x 6 mips of ONE image, one barrier per subresource, all with the same layouts and
-// access masks) right before the AMD Windows driver faults. Neighbouring subresources with an
-// identical transition are one barrier by the spec; this folds runs of layers first, then runs of
-// mips, so the 9216 become 1. TLG_BARRIER_MERGE=0 keeps the old one-per-subresource barriers.
+// Opt-in for the RX 580 investigation (#232/#278). Use the same strict switch as the launcher.
 bool MergeBarriersEnabled() {
-    static const bool on = [] {
-        const char* env = std::getenv("TLG_BARRIER_MERGE");
-        const bool enabled = !(env && env[0] == '0');
-        if (enabled) {
-            std::printf("GPU: merging adjacent subresource barriers (TLG_BARRIER_MERGE=0 keeps "
-                        "one per subresource)\n");
+    static const bool enabled = [] {
+        const bool on = IsBarrierMergeEnabled(std::getenv("TLG_BARRIER_MERGE"));
+        if (on) {
+            std::printf("GPU: merging adjacent subresource barriers (TLG_BARRIER_MERGE=1)\n");
         }
-        return enabled;
+        return on;
     }();
-    return on;
-}
-
-template <typename Container>
-void MergeAdjacentBarriers(Container& barriers, size_t first) {
-    if (barriers.size() < first + 2) {
-        return;
-    }
-    size_t out = first;
-    for (size_t i = first + 1; i < barriers.size(); ++i) {
-        auto& prev = barriers[out];
-        const auto cur = barriers[i];
-        auto& pr = prev.subresourceRange;
-        const auto& cr = cur.subresourceRange;
-        const bool same_transition =
-            prev.image == cur.image && pr.aspectMask == cr.aspectMask &&
-            prev.srcStageMask == cur.srcStageMask && prev.srcAccessMask == cur.srcAccessMask &&
-            prev.dstStageMask == cur.dstStageMask && prev.dstAccessMask == cur.dstAccessMask &&
-            prev.oldLayout == cur.oldLayout && prev.newLayout == cur.newLayout &&
-            prev.srcQueueFamilyIndex == cur.srcQueueFamilyIndex &&
-            prev.dstQueueFamilyIndex == cur.dstQueueFamilyIndex;
-        if (same_transition && pr.baseMipLevel == cr.baseMipLevel &&
-            pr.levelCount == cr.levelCount && pr.baseArrayLayer + pr.layerCount == cr.baseArrayLayer) {
-            pr.layerCount += cr.layerCount; // next layers of the same mips
-            continue;
-        }
-        if (same_transition && pr.baseArrayLayer == cr.baseArrayLayer &&
-            pr.layerCount == cr.layerCount && pr.baseMipLevel + pr.levelCount == cr.baseMipLevel) {
-            pr.levelCount += cr.levelCount; // next mips of the same layers
-            continue;
-        }
-        barriers[++out] = cur;
-    }
-    barriers.erase(barriers.begin() + (out + 1), barriers.end());
+    return enabled;
 }
 
 /// tlg: how many times the driver has refused this format/type/flags/usage combination. The
@@ -437,6 +399,7 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
                                       vk::AccessFlagBits2::eShaderWrite |
                                       vk::AccessFlagBits2::eMemoryWrite;
     auto& memo = backing->partial_memo;
+    const auto first_new_barrier = barriers.size();
     if (needs_partial_transition && partially_transited && memo.valid &&
         memo.range == *subres_range && memo.layout == dst_layout && memo.access == dst_mask &&
         memo.stage == dst_stage) {
@@ -444,7 +407,6 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
     }
     memo.valid = false;
     if (needs_partial_transition || partially_transited) {
-        const size_t first_new_barrier = barriers.size();
         if (!partially_transited) {
             subresource_states.resize(info.resources.levels * info.resources.layers);
             std::fill(subresource_states.begin(), subresource_states.end(), last_state);
@@ -466,8 +428,7 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
 
         for (u32 mip : mips) {
             for (u32 layer : layers) {
-                // NOTE: these loops may produce a lot of small barriers.
-                // If this becomes a problem, we can optimize it by merging adjacent barriers.
+                // Optional coalescing below folds equal neighbouring transitions after this loop.
                 const auto subres_idx = mip * info.resources.layers + layer;
                 ASSERT(subres_idx < subresource_states.size());
                 auto& state = subresource_states[subres_idx];
@@ -500,12 +461,6 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
                     state.pl_stage = dst_stage;
                 }
             }
-        }
-
-        if (MergeBarriersEnabled()) {
-            // First pass folds layers within a mip, second folds mips with equal layer ranges.
-            MergeAdjacentBarriers(barriers, first_new_barrier);
-            MergeAdjacentBarriers(barriers, first_new_barrier);
         }
 
         if (!needs_partial_transition) {
@@ -555,6 +510,11 @@ void Image::GetBarriers(Barriers& barriers, vk::ImageLayout dst_layout, vk::Acce
                 });
             }
         }
+    }
+
+    // Merge only barriers emitted by this call, once, using the shared two-pass helper.
+    if (barriers.size() >= first_new_barrier + 2 && MergeBarriersEnabled()) {
+        MergeAdjacentBarriers(barriers, first_new_barrier);
     }
 
     last_state.layout = dst_layout;
