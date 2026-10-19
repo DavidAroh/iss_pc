@@ -32,23 +32,15 @@ Por **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) 
 
 <sub>Capturas na resolução nativa (1920×1080, reduzidas para 1280), direto da GPU, no Linux com uma RTX 2060.</sub>
 
-## Contribuidores / Contributors
-
-Obrigado a todas as pessoas que ajudaram este projeto. [Veja a lista completa de contribuições](https://github.com/HayatoG/iss_pc/graphs/contributors).
-
 <p align="center">
-  <a href="https://github.com/HayatoG"><img src="https://avatars.githubusercontent.com/u/22659047?v=4" width="80" alt="HayatoG"><br>HayatoG</a>&nbsp;&nbsp;
-  <a href="https://github.com/intemerated"><img src="https://avatars.githubusercontent.com/u/343755099?v=4" width="80" alt="intemerated"><br>intemerated</a>&nbsp;&nbsp;
-  <a href="https://github.com/Andretuta"><img src="https://avatars.githubusercontent.com/u/219594641?v=4" width="80" alt="Andretuta"><br>Andretuta</a>&nbsp;&nbsp;
-  <a href="https://github.com/Playdbunny"><img src="https://avatars.githubusercontent.com/u/70190491?v=4" width="80" alt="Playdbunny"><br>Playdbunny</a>&nbsp;&nbsp;
-  <a href="https://github.com/EdouardSence"><img src="https://avatars.githubusercontent.com/u/103503538?v=4" width="80" alt="EdouardSence"><br>EdouardSence</a>&nbsp;&nbsp;
-  <a href="https://github.com/HayatoG/iss_pc/graphs/contributors"><img src="https://github.com/identicons/guilherme-oliveira.png" width="80" alt="Identicon do GitHub para Guilherme Oliveira"><br>Guilherme Oliveira</a>&nbsp;&nbsp;
-  <a href="https://github.com/batuhankiskac"><img src="https://github.com/batuhankiskac.png" width="80" alt="batuhankiskac"><br>batuhankiskac</a>
+  <a href="https://github.com/HayatoG"><img src="https://avatars.githubusercontent.com/u/22659047?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
+  <a href="https://github.com/intemerated"><img src="https://avatars.githubusercontent.com/u/343755099?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
+  <a href="https://github.com/Andretuta"><img src="https://avatars.githubusercontent.com/u/219594641?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
+  <a href="https://github.com/Playdbunny"><img src="https://avatars.githubusercontent.com/u/70190491?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
+  <a href="https://github.com/EdouardSence"><img src="https://avatars.githubusercontent.com/u/103503538?v=4" width="72" alt="Foto de perfil de contribuidor"></a>&nbsp;&nbsp;
+  <a href="https://github.com/HayatoG/iss_pc/graphs/contributors"><img src="https://github.com/identicons/guilherme-oliveira.png" width="72" alt="Avatar de contribuidor"></a>&nbsp;&nbsp;
+  <a href="https://github.com/batuhankiskac"><img src="https://github.com/batuhankiskac.png" width="72" alt="Foto de perfil de contribuidor"></a>
 </p>
-
-Obrigado, Guilherme! O GitHub gera esse avatar porque a contribuição não está ligada a um perfil público.
-
-Thanks to everyone who has contributed to this project. GitHub generates Guilherme's avatar because the contribution is not linked to a public profile.
 
 ## Novidades
 
