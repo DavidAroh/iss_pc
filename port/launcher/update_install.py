@@ -253,10 +253,13 @@ def _restore(transaction, data):
             continue
         dest = _path(data['target'], row['path'], data.get('protected', ()), allow_manifest=True)
         if row['before'] is not None:
-            backup = _path(transaction.parent / 'backup', row['path'], allow_manifest=True)
-            if not backup.is_file() or _hash(backup) != row['before']:
-                raise InstallError('recovery', row['path'])
-            _copy(backup, dest)
+            # Already the old content when its replacement never happened (for example, a locked
+            # file): nothing is written, so the lock cannot make the recovery fail.
+            if not (dest.is_file() and _hash(dest) == row['before']):
+                backup = _path(transaction.parent / 'backup', row['path'], allow_manifest=True)
+                if not backup.is_file() or _hash(backup) != row['before']:
+                    raise InstallError('recovery', row['path'])
+                _copy(backup, dest)
         elif dest.exists():
             if not dest.is_file() or _hash(dest) != row['after']:
                 raise InstallError('conflict', row['path'])
