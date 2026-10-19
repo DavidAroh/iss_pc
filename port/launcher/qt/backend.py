@@ -23,7 +23,8 @@ CLOSE_DELAY_MS = 2000     # 'Close the launcher when the game starts': wait afte
 
 URLS = {'channel': 'https://www.youtube.com/@hayatog-dev', 'discord': 'https://discord.gg/UMkdMYZh9g',
         'sponsor': 'https://github.com/sponsors/HayatoG',
-        'coffee': 'https://buymeacoffee.com/hayatog'}
+        'coffee': 'https://buymeacoffee.com/hayatog',
+        'apolar': 'https://github.com/sapoguruoficial-cmd'}
 
 
 class FixesModel(QAbstractListModel):

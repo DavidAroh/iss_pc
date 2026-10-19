@@ -212,8 +212,14 @@ class Graphics(QObject):
     @Property('QVariantList', notify=changed)
     def presets(self):
         current = gfxlogic.matching_preset(self.settings, self.backend.fix_states)
-        return [{'id': pid, 'label': self.t('gfx_preset_' + pid), 'what': self.t('gfx_preset_%s_what' % pid),
-                 'active': pid == current, 'standard': pid == gfxlogic.DEFAULT_PRESET} for pid, _, _ in gfxlogic.PRESETS]
+        result = []
+        for pid, _, _ in gfxlogic.PRESETS:
+            preset = gfxlogic.FULL_PRESETS.get(pid, {})
+            result.append({'id': pid, 'label': self.t('gfx_preset_' + pid),
+                           'what': self.t('gfx_preset_%s_what' % pid),
+                           'credit': preset.get('credit', ''), 'creditUrl': preset.get('credit_url', ''),
+                           'active': pid == current, 'standard': pid == gfxlogic.DEFAULT_PRESET})
+        return result
 
     def _imported_name(self):
         """The profile name of the imported file while the options still equal it."""
