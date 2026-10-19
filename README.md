@@ -1,3 +1,8 @@
+<p align="center">
+  <a href="https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/307125/daily?language=C%2B%2B" alt="HayatoG%2Fiss_pc | Trendshift" width="250" height="55"/></a>
+  <a href="https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/307125/weekly?language=C%2B%2B" alt="HayatoG%2Fiss_pc | Trendshift" width="250" height="55"/></a>
+</p>
+
 <p align="center"><img src="port/packaging/icon/infamous-icon-1024.png" width="160" alt=""></p>
 
 <h1 align="center">inFAMOUS Second Son — port nativo para PC</h1>
