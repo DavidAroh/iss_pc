@@ -160,6 +160,7 @@
   "hero_tagline": {"en": "Delsin needs\nyou", "pt": "Delsin precisa\nde você"},
   "hero_kicker": {"en": "Seattle · {serial} · v{version}", "pt": "Seattle · {serial} · v{version}"},
   "play_label": {"en": "Play", "pt": "Jogar"},
+  "coffee_label": {"en": "Buy me a coffee", "pt": "Apoie com um café"},
   "sponsor_label": {"en": "Sponsor on GitHub", "pt": "Apoiar no GitHub"},
   "play_continue": {"en": "Continue · {save}", "pt": "Continuar · {save}"},
   "play_new": {"en": "Start the game", "pt": "Iniciar o jogo"},

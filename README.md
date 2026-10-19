@@ -2,6 +2,8 @@
 
 <h1 align="center">inFAMOUS Second Son — port nativo para PC</h1>
 
+<p align="center"><a href="https://buymeacoffee.com/hayatog"><img src="https://img.shields.io/badge/Buy_me_a_coffee-Apoie_o_projeto-FFDD00?logo=buymeacoffee&amp;logoColor=000000" alt="Apoie com um café / Buy me a coffee"></a></p>
+
 <p align="center">
   <a href="#english"><b>English below</b></a> ·
   <a href="https://github.com/HayatoG/iss_pc/releases/latest">Download</a> ·
@@ -735,3 +737,9 @@ Code base: [tlg_pc](https://github.com/HayatoG/tlg_pc), [gr2_pc](https://github.
 - The players who reported problems in the [issues](https://github.com/HayatoG/iss_pc/issues), with logs that changed the port's course: jacckkss (#50, flickering lights and smoke), heyzerr (#51, #65, #67, CPUs without F16C and the RX 580), Andrade2244 (#29), MrRobot11214 (#31), fghacksr (#49), AngelHomura (#59) and aledieb93-svg (#81) (crashes on the RX 580 and on Windows), ViniSnapeS (#72) and kudetgaming-art (#75) (video memory), summer882 (#71), manymanyyyd-afk (#63) and Kpopping (#73) (Turkish and Russian), mahmoudmahran2112-crypto (#70, Quadro/Maxwell), Milicksp (#16), gsev3333 (#41) and everyone else who opened an issue or tested a build.
 
 This project is not affiliated with Sony Interactive Entertainment or Sucker Punch Productions. inFAMOUS is a trademark of Sony Interactive Entertainment. No game code, files or art are distributed here. The icon is original artwork made for this project.
+
+## Apoie o desenvolvimento / Support development
+
+Se quiser apoiar os ports, [pague um café pelo Buy Me a Coffee](https://buymeacoffee.com/hayatog). O apoio é opcional; os ports continuam gratuitos.
+
+If you would like to support the ports, [buy me a coffee](https://buymeacoffee.com/hayatog). Support is optional; the ports remain free.

@@ -131,3 +131,10 @@ For the graffiti, absorbing powers (smoke, neon...), opening doors and other sen
 ---
 
 This project is not affiliated with Sony Interactive Entertainment or Sucker Punch Productions. inFAMOUS is a trademark of Sony Interactive Entertainment. / Este projeto não tem vínculo com a Sony Interactive Entertainment ou a Sucker Punch Productions.
+
+## Apoie o desenvolvimento / Support development
+
+☕ [Apoie com um café / Buy me a coffee](https://buymeacoffee.com/hayatog)
+
+Apoio opcional para continuar desenvolvendo os ports. Os ports continuam gratuitos.
+Optional support for continued port development. The ports remain free.
